@@ -82,6 +82,21 @@ class EquipmentResource extends Resource
                         Forms\Components\TextInput::make('step')
                             ->required()
                     ])
+                    ->beforeStateDehydrated(function (Forms\Get $get, Forms\Set $set, $state) {
+                        // Ensure the data is in the right format before saving
+                        if (is_array($state)) {
+                            $set('checklist', $state);
+                        }
+                    })
+                    ->afterStateHydrated(function (Forms\Get $get, Forms\Set $set, $state) {
+                        // Decode JSON if needed
+                        if (is_string($state)) {
+                            $decoded = json_decode($state, true);
+                            if (is_array($decoded)) {
+                                $set('checklist', $decoded);
+                            }
+                        }
+                    })
             ]);
     }
 
@@ -99,9 +114,10 @@ class EquipmentResource extends Resource
                 Tables\Columns\TextColumn::make('location')
                     ->label('Lokasi'),
 
-                Tables\Columns\ImageColumn::make('qr_code')
+                Tables\Columns\TextColumn::make('qr_code')
                     ->label('QR Code')
-                    ->getStateUsing(fn($record) => $record->generateQrCode()),
+                    ->copyable()
+                    ->copyMessage('QR code copied to clipboard'),
 
                 Tables\Columns\BadgeColumn::make('status')
                     ->label('Status')
@@ -113,7 +129,18 @@ class EquipmentResource extends Resource
 
                 Tables\Columns\TextColumn::make('checklist')
                     ->label('Checklist Steps')
-                    ->formatStateUsing(fn($state) => is_array($decoded = json_decode($state, true)) ? count($decoded) : 0)
+                    ->formatStateUsing(function ($state) {
+                        if (empty($state)) {
+                            return 0;
+                        }
+
+                        if (is_string($state)) {
+                            $decoded = json_decode($state, true);
+                            return is_array($decoded) ? count($decoded) : 0;
+                        }
+
+                        return is_array($state) ? count($state) : 0;
+                    })
 
             ])
             ->filters([
@@ -125,6 +152,12 @@ class EquipmentResource extends Resource
                     ]),
             ])
             ->actions([
+                Tables\Actions\Action::make('printQR')
+                    ->label('Print QR')
+                    ->color('success')
+                    ->icon('heroicon-o-qr-code')
+                    ->url(fn(Equipment $record): string => route('equipment.print-qr', $record->id))
+                    ->openUrlInNewTab(),
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Equipment Finder</title>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .container {
+                background: #f5f5f5;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            input,
+            button {
+                padding: 8px 12px;
+                margin: 10px 0;
+            }
+            button {
+                background: #4a90e2;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            #result {
+                margin-top: 20px;
+                padding: 15px;
+                background: #fff;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Equipment Finder</h1>
+            <p>Use this page to find equipment by serial number</p>
+
+            <div>
+                <input
+                    type="text"
+                    id="serial"
+                    placeholder="Enter serial number"
+                    value="XRS-2023-001"
+                />
+                <button onclick="findEquipment()">Find Equipment</button>
+            </div>
+
+            <div id="result">Results will appear here...</div>
+        </div>
+
+        <script>
+            function findEquipment() {
+                const serial = document.getElementById("serial").value;
+                const resultDiv = document.getElementById("result");
+
+                resultDiv.innerHTML = "Searching...";
+
+                // Try both API endpoints
+                fetch(`/api/equipment/serial/${serial}`)
+                    .then((response) => response.json())
+                    .then((data) => {
+                        if (data.status === "success") {
+                            resultDiv.innerHTML = `
+                            <h2>Equipment Found (API)</h2>
+                            <p><strong>Name:</strong> ${data.equipment.name}</p>
+                            <p><strong>Serial:</strong> ${data.equipment.serial_number}</p>
+                            <p><strong>Status:</strong> ${data.equipment.status}</p>
+                            <p><a href="/equipment/serial/${data.equipment.serial_number}" target="_blank">View Details</a></p>
+                        `;
+                        } else {
+                            resultDiv.innerHTML = `
+                            <h2>Equipment Not Found (API)</h2>
+                            <p>Could not find equipment with serial: ${serial}</p>
+                            <h3>Available Equipment:</h3>
+                            <ul>
+                                ${data.all_equipment
+                                    .map(
+                                        (eq) =>
+                                            `<li>${eq.name} (${eq.serial_number})</li>`
+                                    )
+                                    .join("")}
+                            </ul>
+                        `;
+                        }
+                    })
+                    .catch((error) => {
+                        // If API fails, try the web route
+                        fetch(`/equipment/test`)
+                            .then((response) => response.json())
+                            .then((data) => {
+                                resultDiv.innerHTML = `
+                                <h2>API Error</h2>
+                                <p>Could not access API endpoint, but found these serials:</p>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            `;
+                            })
+                            .catch((err) => {
+                                resultDiv.innerHTML = `
+                                <h2>Error</h2>
+                                <p>Could not access any endpoints. Please check your server.</p>
+                                <p>Error: ${error.message}</p>
+                                <p>Secondary error: ${err.message}</p>
+                            `;
+                            });
+                    });
+            }
+        </script>
+    </body>
+</html>

@@ -46,3 +46,31 @@ Route::post('/sensor-data', function (Request $request) {
 
     return response()->json(['status' => 'success']);
 });
+
+// API test endpoint for equipment access
+Route::get('/equipment/serial/{serial}', function ($serial) {
+    $equipment = \App\Models\Equipment::where('serial_number', $serial)->first();
+
+    if ($equipment) {
+        return response()->json([
+            'status' => 'success',
+            'equipment' => [
+                'id' => $equipment->id,
+                'name' => $equipment->name,
+                'serial_number' => $equipment->serial_number,
+                'location' => $equipment->location,
+                'status' => $equipment->status
+            ]
+        ]);
+    } else {
+        // Try to list all equipment to help diagnose the issue
+        $allEquipment = \App\Models\Equipment::select('id', 'name', 'serial_number')->get();
+
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Equipment not found',
+            'searched_for' => $serial,
+            'all_equipment' => $allEquipment
+        ], 404);
+    }
+});

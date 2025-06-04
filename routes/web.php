@@ -38,6 +38,46 @@ Route::get('/', function () {
     return redirect('/admin');
 });
 
+// Public routes for QR Code access (no authentication required)
+Route::middleware(['web'])->group(function () {
+    // Test route to check if routing is working
+    Route::get('/equipment/test', function () {
+        $serials = App\Models\Equipment::pluck('serial_number', 'id')->toArray();
+        return response()->json([
+            'message' => 'Routes are working correctly',
+            'equipment_serials' => $serials,
+            'test_links' => [
+                'serial_example' => url('/equipment/serial/' . urlencode(array_values($serials)[0] ?? 'test')),
+                'qr_example' => url('/q/test'),
+            ]
+        ]);
+    })->name('equipment.test');
+
+    // QR code test page
+    Route::get('/qr-test', function () {
+        return view('test-qr');
+    })->name('qr.test');
+
+    // URL test page
+    Route::get('/url-test', function () {
+        return view('test-url');
+    })->name('url.test');
+
+    // Direct QR access page
+    Route::get('/qr-direct', function () {
+        return view('qr-direct');
+    })->name('qr.direct');
+
+    // Short URL for QR code access
+    Route::get('/q/{code}', [EquipmentController::class, 'quickAccess'])->name('equipment.quick');
+
+    // Original route for QR code
+    Route::get('/equipment/qr/{code}', [EquipmentController::class, 'showByQr'])->name('equipment.qr');
+
+    // Access equipment by serial number
+    Route::get('/equipment/serial/{serial}', [EquipmentController::class, 'showBySerial'])->name('equipment.serial');
+});
+
 // Kelompok route yang membutuhkan autentikasi
 Route::middleware(['auth'])->group(function () {
 
@@ -71,10 +111,10 @@ Route::middleware(['auth'])->group(function () {
 
     // Inventory Management (Admin)
     Route::resource('/admin/inventory', InventoryController::class);
-});
 
-// Route untuk menampilkan detail Equipment berdasarkan QR Code (tanpa autentikasi)
-Route::get('/equipment/qr/{code}', action: [EquipmentController::class, 'showByQr'])->name('equipment.qr');
+    // Print QR Code
+    Route::get('/equipment/{id}/print-qr', [EquipmentController::class, 'printQrCode'])->name('equipment.print-qr');
+});
 
 // Memasukkan route authentication dari Laravel Breeze/Fortify
 require __DIR__ . '/auth.php';
