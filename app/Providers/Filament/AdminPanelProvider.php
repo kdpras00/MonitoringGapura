@@ -22,6 +22,9 @@ use App\Filament\Widgets\MaintenanceOverviewWidget;
 use App\Filament\Widgets\MaintenanceAnalyticsWidget;
 use App\Filament\Widgets\PredictiveMaintenanceWidget;
 use App\Filament\Widgets\EquipmentStatusWidget;
+use App\Filament\Widgets\StatsOverview;
+use App\Filament\Widgets\LatestMaintenances;
+use App\Filament\Widgets\SupervisorStatsOverview;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -49,6 +52,7 @@ class AdminPanelProvider extends PanelProvider
                 EquipmentStatusWidget::class,
                 MaintenanceAnalyticsWidget::class,
                 PredictiveMaintenanceWidget::class,
+                SupervisorStatsOverview::class,
             ])
             ->middleware([
                 EncryptCookies::class,

@@ -44,9 +44,33 @@ class EquipmentResource extends Resource
                     ->unique(ignoreRecord: true) // Mencegah error saat edit
                     ->label('Nomor Seri'),
 
+                Forms\Components\TextInput::make('barcode')
+                    ->label('Barcode')
+                    ->placeholder('EQ00000000')
+                    ->helperText('Dibuat otomatis jika dikosongkan'),
+
                 Forms\Components\TextInput::make('location')
                     ->required()
                     ->label('Lokasi'),
+
+                Forms\Components\Select::make('type')
+                    ->label('Jenis Alat')
+                    ->options([
+                        'elektrik' => 'Elektrik',
+                        'non-elektrik' => 'Non-Elektrik',
+                    ])
+                    ->default('non-elektrik')
+                    ->required(),
+
+                Forms\Components\Select::make('priority')
+                    ->label('Prioritas')
+                    ->options([
+                        'merah' => 'Merah (Tinggi)',
+                        'kuning' => 'Kuning (Sedang)',
+                        'hijau' => 'Hijau (Rendah)',
+                    ])
+                    ->default('hijau')
+                    ->required(),
 
                 Forms\Components\DatePicker::make('installation_date')
                     ->required()
@@ -105,43 +129,77 @@ class EquipmentResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Nama')
-                    ->searchable(),
+                    ->sortable()
+                    ->searchable()
+                    ->label('Nama Equipment'),
+
+                Tables\Columns\TextColumn::make('type')
+                    ->label('Jenis Alat')
+                    ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+
+                Tables\Columns\TextColumn::make('priority')
+                    ->label('Prioritas')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'merah' => 'danger',
+                        'kuning' => 'warning',
+                        'hijau' => 'success',
+                        default => 'gray',
+                    }),
 
                 Tables\Columns\TextColumn::make('serial_number')
+                    ->sortable()
+                    ->searchable()
                     ->label('Nomor Seri'),
 
-                Tables\Columns\TextColumn::make('location')
-                    ->label('Lokasi'),
-
-                Tables\Columns\TextColumn::make('qr_code')
-                    ->label('QR Code')
+                Tables\Columns\TextColumn::make('barcode')
+                    ->label('Kode Scan')
+                    ->formatStateUsing(fn ($state, Equipment $record) => $record->barcode ?: $record->qr_code)
                     ->copyable()
-                    ->copyMessage('QR code copied to clipboard'),
+                    ->copyMessage('Kode scan berhasil disalin')
+                    ->description(fn (Equipment $record) => "Serial: " . $record->serial_number),
 
-                Tables\Columns\BadgeColumn::make('status')
-                    ->label('Status')
-                    ->colors([
-                        'success' => 'active',
-                        'warning' => 'maintenance',
-                        'danger' => 'retired',
-                    ]),
+                Tables\Columns\TextColumn::make('location')
+                    ->sortable()
+                    ->searchable()
+                    ->label('Lokasi'),
 
                 Tables\Columns\TextColumn::make('checklist')
                     ->label('Checklist Steps')
-                    ->formatStateUsing(function ($state) {
-                        if (empty($state)) {
+                    ->formatStateUsing(function ($state, Equipment $record) {
+                        try {
+                            // Gunakan accessor array
+                            $checklistArray = $record->checklist_array;
+                            if (is_array($checklistArray)) {
+                                return count($checklistArray);
+                            }
+                            
+                            // Fallback jika accessor gagal
+                            if (empty($state)) {
+                                return 0;
+                            }
+
+                            if (is_string($state)) {
+                                $decoded = json_decode($state, true);
+                                return is_array($decoded) ? count($decoded) : 0;
+                            }
+                            
+                            return is_array($state) ? count($state) : 0;
+                        } catch (\Exception $e) {
+                            \Illuminate\Support\Facades\Log::error('Error counting checklist steps: ' . $e->getMessage());
                             return 0;
                         }
+                    }),
 
-                        if (is_string($state)) {
-                            $decoded = json_decode($state, true);
-                            return is_array($decoded) ? count($decoded) : 0;
-                        }
-
-                        return is_array($state) ? count($state) : 0;
-                    })
-
+                Tables\Columns\TextColumn::make('status')
+                    ->label('Status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'active' => 'success',
+                        'maintenance' => 'warning',
+                        'retired' => 'danger',
+                        default => 'gray',
+                    }),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
@@ -152,11 +210,11 @@ class EquipmentResource extends Resource
                     ]),
             ])
             ->actions([
-                Tables\Actions\Action::make('printQR')
-                    ->label('Print QR')
+                Tables\Actions\Action::make('printScanCode')
+                    ->label('Cetak Kode Scan')
                     ->color('success')
                     ->icon('heroicon-o-qr-code')
-                    ->url(fn(Equipment $record): string => route('equipment.print-qr', $record->id))
+                    ->url(fn(Equipment $record): string => route('equipment.barcode', $record))
                     ->openUrlInNewTab(),
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),

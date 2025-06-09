@@ -52,6 +52,8 @@ class DatabaseSeeder extends Seeder
         // Jalankan dummy data seeder
         $this->call([
             DummyDataSeeder::class,
+            SparePartSeeder::class,
+            SupervisorUserSeeder::class,
         ]);
     }
 }

@@ -56,7 +56,7 @@
             </div>
             
             <!-- Maintenance Checklist -->
-            @if(count($equipment->checklist_array) > 0)
+            @if(isset($equipment->checklist_array) && is_array($equipment->checklist_array) && count($equipment->checklist_array) > 0)
             <div class="border-t border-gray-200 pt-4 mt-4">
                 <h3 class="text-lg font-semibold mb-2 text-gray-800">Maintenance Checklist</h3>
                 <ul class="list-disc pl-5 text-sm text-gray-600">

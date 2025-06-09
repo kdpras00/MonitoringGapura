@@ -24,6 +24,7 @@ class RolePermissionSeeder extends Seeder
             'manage equipment',
             'manage maintenance',
             'view reports',
+            'approve maintenance',
         ];
 
         foreach ($permissions as $permission) {
@@ -32,9 +33,10 @@ class RolePermissionSeeder extends Seeder
 
         // Buat roles tanpa duplikasi
         $roles = [
-            'admin' => ['manage equipment', 'manage maintenance', 'view reports'],
+            'admin' => ['manage equipment', 'manage maintenance', 'view reports', 'approve maintenance'],
             'technician' => ['manage maintenance'],
             'viewer' => ['view reports'],
+            'supervisor' => ['approve maintenance', 'view reports'],
         ];
 
         foreach ($roles as $roleName => $rolePermissions) {

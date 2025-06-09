@@ -246,6 +246,12 @@
                                 <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#scheduleModal">
                                     Jadwalkan Maintenance
                                 </button>
+                                
+                                @if(isset($equipmentData['active_maintenance']))
+                                <button type="button" class="btn btn-success ml-2" data-toggle="modal" data-target="#completeMaintModal">
+                                    Selesaikan Maintenance
+                                </button>
+                                @endif
                             </div>
                         @endif
                     @else
@@ -276,9 +282,9 @@
 
 <!-- Modal Jadwalkan Maintenance -->
 <div class="modal fade" id="scheduleModal" tabindex="-1" role="dialog" aria-labelledby="scheduleModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
-            <form action="{{ route('maintenance.schedule', $equipmentData['id'] ?? '') }}" method="POST">
+            <form action="{{ route('maintenance.schedule', $equipmentData['id'] ?? '') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-header">
                     <h5 class="modal-title" id="scheduleModalLabel">Jadwalkan Maintenance</h5>
@@ -287,17 +293,69 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <div class="form-group">
-                        <label for="scheduled_date">Tanggal Maintenance</label>
-                        <input type="date" class="form-control" id="scheduled_date" name="scheduled_date" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="technician">Teknisi</label>
-                        <input type="text" class="form-control" id="technician" name="technician" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="notes">Catatan</label>
-                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="scheduled_date">Tanggal Maintenance</label>
+                                <input type="date" class="form-control" id="scheduled_date" name="scheduled_date" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="technician">Teknisi</label>
+                                <input type="text" class="form-control" id="technician" name="technician" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="equipment_type">Jenis Alat</label>
+                                <select class="form-control" id="equipment_type" name="equipment_type" required>
+                                    <option value="">Pilih jenis alat</option>
+                                    <option value="elektrik">Elektrik</option>
+                                    <option value="non-elektrik">Non-Elektrik</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="priority">Prioritas</label>
+                                <select class="form-control" id="priority" name="priority" required>
+                                    <option value="">Pilih prioritas</option>
+                                    <option value="hijau" class="text-success">Hijau (Normal)</option>
+                                    <option value="kuning" class="text-warning">Kuning (Perhatian)</option>
+                                    <option value="merah" class="text-danger">Merah (Mendesak)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="notes">Catatan</label>
+                                <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Foto Sebelum Maintenance (Wajib)</label>
+                                <input type="file" class="form-control-file" id="before_image" name="before_image" accept="image/*" required>
+                                <small class="form-text text-muted">Upload foto kondisi alat sebelum dilakukan maintenance</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Checklist Digital</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="check_power" name="checklist[]" value="check_power" required>
+                                    <label class="form-check-label" for="check_power">Cek sumber daya</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="check_connection" name="checklist[]" value="check_connection" required>
+                                    <label class="form-check-label" for="check_connection">Cek koneksi</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="check_physical" name="checklist[]" value="check_physical" required>
+                                    <label class="form-check-label" for="check_physical">Cek kondisi fisik</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="check_calibration" name="checklist[]" value="check_calibration" required>
+                                    <label class="form-check-label" for="check_calibration">Kalibrasi</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="check_test" name="checklist[]" value="check_test" required>
+                                    <label class="form-check-label" for="check_test">Uji operasi</label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -308,4 +366,115 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Selesaikan Maintenance -->
+<div class="modal fade" id="completeMaintModal" tabindex="-1" role="dialog" aria-labelledby="completeMaintModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form action="{{ route('maintenance.complete', $equipmentData['id'] ?? '') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title" id="completeMaintModalLabel">Selesaikan Maintenance</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="completion_date">Tanggal Selesai</label>
+                                <input type="date" class="form-control" id="completion_date" name="completion_date" value="{{ date('Y-m-d') }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="maintenance_duration">Durasi Pekerjaan (menit)</label>
+                                <input type="number" class="form-control" id="maintenance_duration" name="maintenance_duration" min="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="location">Lokasi</label>
+                                <input type="text" class="form-control" id="location" name="location" required readonly>
+                                <small class="form-text text-muted">Lokasi akan terdeteksi otomatis</small>
+                                <input type="hidden" id="location_lat" name="location_lat">
+                                <input type="hidden" id="location_lng" name="location_lng">
+                                <input type="hidden" id="location_timestamp" name="location_timestamp">
+                            </div>
+                            <div class="form-group">
+                                <label for="completion_notes">Catatan Penyelesaian</label>
+                                <textarea class="form-control" id="completion_notes" name="completion_notes" rows="3" required></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Foto Setelah Maintenance (Wajib)</label>
+                                <input type="file" class="form-control-file" id="after_image" name="after_image" accept="image/*" required>
+                                <small class="form-text text-muted">Upload foto kondisi alat setelah dilakukan maintenance</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Hasil Maintenance</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" id="result_good" name="maintenance_result" value="good" required>
+                                    <label class="form-check-label" for="result_good">Baik (Berfungsi Normal)</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" id="result_partial" name="maintenance_result" value="partial">
+                                    <label class="form-check-label" for="result_partial">Sebagian (Perlu Penanganan Lanjutan)</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" id="result_failed" name="maintenance_result" value="failed">
+                                    <label class="form-check-label" for="result_failed">Gagal (Butuh Penggantian)</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success">Simpan & Kirim ke Supervisor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endsection
+
+@section('scripts')
+<script>
+    $(document).ready(function() {
+        // Geolocation untuk form penyelesaian maintenance
+        $('#completeMaintModal').on('shown.bs.modal', function (e) {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    var lat = position.coords.latitude;
+                    var lng = position.coords.longitude;
+                    var timestamp = new Date().toISOString();
+                    
+                    $('#location_lat').val(lat);
+                    $('#location_lng').val(lng);
+                    $('#location_timestamp').val(timestamp);
+                    $('#location').val(lat + ', ' + lng + ' pada ' + new Date().toLocaleString());
+                    
+                    // Timer untuk menghitung durasi maintenance (dalam kasus nyata, ini akan mengambil dari waktu mulai)
+                    startMaintenanceTimer();
+                }, function(error) {
+                    alert('Gagal mendapatkan lokasi. Pastikan GPS diaktifkan.');
+                    console.error("Error Code = " + error.code + " - " + error.message);
+                });
+            } else {
+                alert("Geolocation tidak didukung oleh browser ini.");
+            }
+        });
+        
+        // Timer untuk durasi pekerjaan
+        function startMaintenanceTimer() {
+            // Dalam kasus nyata, waktu mulai akan diambil dari database
+            // Untuk contoh, kita gunakan waktu saat ini dikurangi 30 menit
+            var startTime = new Date();
+            startTime.setMinutes(startTime.getMinutes() - 30); // Contoh: maintenance sudah berjalan 30 menit
+            
+            var duration = Math.round((new Date() - startTime) / 60000); // Konversi ke menit
+            $('#maintenance_duration').val(duration);
+        }
+    });
+</script>
 @endsection 

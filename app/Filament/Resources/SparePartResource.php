@@ -45,15 +45,27 @@ class SparePartResource extends Resource
                 Forms\Components\TextInput::make('part_number')
                     ->label('Nomor Part')
                     ->required(),
+                    
+                Forms\Components\TextInput::make('barcode')
+                    ->label('Kode Barcode')
+                    ->helperText('Dibuat otomatis jika dikosongkan')
+                    ->placeholder('SP00000000'),
 
-                Forms\Components\TextInput::make('quantity')
+                Forms\Components\TextInput::make('stock')
                     ->label('Jumlah')
+                    ->numeric()
+                    ->required(),
+                    
+                Forms\Components\TextInput::make('min_stock')
+                    ->label('Jumlah Minimum')
+                    ->helperText('Stok akan dianggap rendah jika di bawah nilai ini')
                     ->numeric()
                     ->required(),
 
                 Forms\Components\TextInput::make('price')
                     ->label('Harga')
                     ->numeric()
+                    ->prefix('Rp')
                     ->required(),
 
                 Forms\Components\Select::make('status')
@@ -83,8 +95,12 @@ class SparePartResource extends Resource
                 Tables\Columns\TextColumn::make('part_number')
                     ->label('Nomor Part')
                     ->searchable(),
+                    
+                Tables\Columns\TextColumn::make('barcode')
+                    ->label('Kode Barcode')
+                    ->searchable(),
 
-                Tables\Columns\TextColumn::make('quantity')
+                Tables\Columns\TextColumn::make('stock')
                     ->label('Jumlah')
                     ->sortable(),
 
@@ -93,13 +109,21 @@ class SparePartResource extends Resource
                     ->money('IDR')
                     ->sortable(),
 
-                Tables\Columns\BadgeColumn::make('status')
+                Tables\Columns\TextColumn::make('status')
                     ->label('Status')
-                    ->colors([
-                        'success' => 'available',
-                        'warning' => 'low_stock',
-                        'danger' => 'out_of_stock',
-                    ]),
+                    ->formatStateUsing(fn ($state) => match($state) {
+                        'available' => 'Tersedia',
+                        'low_stock' => 'Stok Rendah',
+                        'out_of_stock' => 'Habis',
+                        default => $state,
+                    })
+                    ->badge()
+                    ->color(fn ($state) => match($state) {
+                        'available' => 'success',
+                        'low_stock' => 'warning',
+                        'out_of_stock' => 'danger',
+                        default => 'secondary',
+                    }),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
@@ -110,6 +134,12 @@ class SparePartResource extends Resource
                     ]),
             ])
             ->actions([
+                Tables\Actions\Action::make('print_barcode')
+                    ->label('Cetak Barcode')
+                    ->icon('heroicon-o-qr-code')
+                    ->color('success')
+                    ->url(fn (SparePart $record) => route('spare-parts.barcode', $record))
+                    ->openUrlInNewTab(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])

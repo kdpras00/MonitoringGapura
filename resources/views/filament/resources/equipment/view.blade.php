@@ -46,18 +46,24 @@
         <h2 class="text-xl font-bold mb-2">Maintenance Checklist</h2>
         <ul class="list-disc pl-5 space-y-1">
             @php
-                $checklist = null;
-                if (!empty($record->checklist)) {
-                    if (is_string($record->checklist)) {
-                        $checklist = json_decode($record->checklist, true);
-                    } else {
-                        $checklist = $record->checklist;
+                try {
+                    $checklistArray = [];
+                    if (!empty($record->checklist)) {
+                        if (is_string($record->checklist)) {
+                            $decoded = json_decode($record->checklist, true);
+                            $checklistArray = is_array($decoded) ? $decoded : [];
+                        } else if (is_array($record->checklist)) {
+                            $checklistArray = $record->checklist;
+                        }
                     }
+                } catch (\Exception $e) {
+                    $checklistArray = [];
+                    \Illuminate\Support\Facades\Log::error('Error parsing checklist: ' . $e->getMessage());
                 }
             @endphp
             
-            @if(is_array($checklist) && count($checklist) > 0)
-                @foreach($checklist as $item)
+            @if(is_array($checklistArray) && count($checklistArray) > 0)
+                @foreach($checklistArray as $item)
                     <li>{{ is_array($item) && isset($item['step']) ? $item['step'] : $item }}</li>
                 @endforeach
             @else

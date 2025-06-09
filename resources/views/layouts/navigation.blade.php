@@ -15,6 +15,16 @@
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    
+                    <x-nav-link :href="route('maintenance.dashboard')" :active="request()->routeIs('maintenance.dashboard')">
+                        {{ __('Maintenance') }}
+                    </x-nav-link>
+                    
+                    @if(Auth::check() && in_array(Auth::user()->role, ['admin', 'supervisor']))
+                    <x-nav-link :href="route('maintenance.supervisor')" :active="request()->routeIs('maintenance.supervisor')">
+                        {{ __('Approval Maintenance') }}
+                    </x-nav-link>
+                    @endif
                 </div>
             </div>
 
@@ -78,6 +88,16 @@
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+            
+            <x-responsive-nav-link :href="route('maintenance.dashboard')" :active="request()->routeIs('maintenance.dashboard')">
+                {{ __('Maintenance') }}
+            </x-responsive-nav-link>
+            
+            @if(Auth::check() && in_array(Auth::user()->role, ['admin', 'supervisor']))
+            <x-responsive-nav-link :href="route('maintenance.supervisor')" :active="request()->routeIs('maintenance.supervisor')">
+                {{ __('Approval Maintenance') }}
+            </x-responsive-nav-link>
+            @endif
         </div>
 
         <!-- Responsive Settings Options -->

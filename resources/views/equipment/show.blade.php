@@ -17,7 +17,7 @@
                 </span>
             </p>
             
-            @if(count($equipment->checklist_array) > 0)
+            @if(isset($equipment->checklist_array) && is_array($equipment->checklist_array) && count($equipment->checklist_array) > 0)
             <div class="mt-4">
                 <p class="font-semibold mb-2">Maintenance Checklist:</p>
                 <ul class="list-disc pl-5">

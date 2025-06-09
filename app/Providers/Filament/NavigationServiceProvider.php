@@ -9,6 +9,7 @@ use Filament\Navigation\NavigationGroup;
 use Filament\Navigation\NavigationItem;
 use App\Filament\Resources\EquipmentResource;
 use App\Filament\Resources\MaintenanceResource;
+use App\Filament\Resources\ApprovalResource;
 use App\Filament\Resources\UserResource;
 use App\Filament\Resources\RoleResource;
 use Illuminate\Support\Facades\Auth;
@@ -37,6 +38,9 @@ class NavigationServiceProvider extends ServiceProvider
             } elseif ($userRole === 'technician') {
                 // Technician can only see maintenance
                 $this->registerTechnicianNavigation($panel);
+            } elseif ($userRole === 'supervisor') {
+                // Supervisor melihat approval maintenance
+                $this->registerSupervisorNavigation($panel);
             } elseif ($userRole === 'viewer') {
                 // Viewer can only see reports
                 $this->registerViewerNavigation($panel);
@@ -69,6 +73,15 @@ class NavigationServiceProvider extends ServiceProvider
                 ->activeIcon('heroicon-s-wrench')
                 ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.resources.maintenances.*'))
                 ->url(route('filament.admin.resources.maintenances.index')),
+                
+            // Approval Maintenance
+            NavigationItem::make('Approval Maintenance')
+                ->icon('heroicon-o-check-badge')
+                ->activeIcon('heroicon-s-check-badge')
+                ->badge(fn() => \App\Models\Maintenance::where('approval_status', 'pending')->count() ?: null)
+                ->badgeColor('warning')
+                ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.resources.approvals.*'))
+                ->url(route('filament.admin.resources.approvals.index')),
 
             // Reports
             NavigationItem::make('View Reports')
@@ -130,6 +143,26 @@ class NavigationServiceProvider extends ServiceProvider
                 ->activeIcon('heroicon-s-home')
                 ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.pages.dashboard'))
                 ->url(route('filament.admin.pages.dashboard')),
+        ]);
+    }
+
+    private function registerSupervisorNavigation($panel): void
+    {
+        $panel->navigationItems([
+            NavigationItem::make('Dashboard')
+                ->icon('heroicon-o-home')
+                ->activeIcon('heroicon-s-home')
+                ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.pages.dashboard'))
+                ->url(route('filament.admin.pages.dashboard')),
+
+            // Approval Maintenance
+            NavigationItem::make('Approval Maintenance')
+                ->icon('heroicon-o-check-badge')
+                ->activeIcon('heroicon-s-check-badge')
+                ->badge(fn() => \App\Models\Maintenance::where('approval_status', 'pending')->count() ?: null)
+                ->badgeColor('warning')
+                ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.resources.approvals.*'))
+                ->url(route('filament.admin.resources.approvals.index')),
         ]);
     }
 }

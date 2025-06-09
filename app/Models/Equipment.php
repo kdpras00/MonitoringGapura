@@ -6,50 +6,78 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Illuminate\Support\Str;
+use Picqer\Barcode\BarcodeGeneratorHTML;
+use Picqer\Barcode\BarcodeGeneratorPNG;
 
 class Equipment extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'name',
-        'serial_number',
-        'location',
-        'installation_date',
-        'description',
-        'status',
-        'manual_url',
-        'specifications',
-        'qr_code',
-        'sop_url',
-        'checklist',
-    ];
-
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
     protected $table = 'equipments';
 
-    protected $casts = [
-        'checklist' => 'array',
-        'installation_date' => 'date',
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'equipment_id',
+        'name',
+        'type',
+        'location',
+        'status',
+        'priority',
+        'last_maintenance_date',
+        'next_maintenance_date',
+        'barcode',
+        'serial_number',
     ];
 
-    protected function getChecklistAttribute($value)
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'last_maintenance_date' => 'date',
+        'next_maintenance_date' => 'date',
+        'checklist' => 'array',
+    ];
+
+    /**
+     * Get all maintenance records for this equipment.
+     */
+    public function maintenances()
     {
-        if (empty($value)) {
-            return [];
-        }
-
-        if (is_string($value)) {
-            $decoded = json_decode($value, true);
-            return is_array($decoded) ? $decoded : [];
-        }
-
-        return is_array($value) ? $value : [];
+        return $this->hasMany(Maintenance::class, 'equipment_id', 'equipment_id');
     }
 
-    // Helper method to safely get checklist as an array
-    public function getChecklistArrayAttribute(): array
+    /**
+     * Get the latest maintenance record for this equipment.
+     */
+    public function latestMaintenance()
     {
-        return $this->checklist;
+        return $this->maintenances()->latest()->first();
+    }
+
+    /**
+     * Get active maintenance records for this equipment.
+     */
+    public function activeMaintenance()
+    {
+        return $this->maintenances()
+            ->where('status', 'scheduled')
+            ->orWhere(function($query) {
+                $query->where('status', 'completed')
+                      ->where('approval_status', 'pending');
+            })
+            ->latest()
+            ->first();
     }
 
     public function predictiveMaintenances()
@@ -70,6 +98,11 @@ class Equipment extends Model
 
                 // Store the unique code in qr_code field
                 $equipment->qr_code = $uniqueCode;
+            }
+            
+            // Generate barcode if not provided
+            if (empty($equipment->barcode)) {
+                $equipment->barcode = 'EQ' . str_pad($equipment->id ?? random_int(1000, 9999), 8, '0', STR_PAD_LEFT);
             }
         });
     }
@@ -95,9 +128,166 @@ class Equipment extends Model
 
         return QrCode::size(200)->generate($url);
     }
+    
+    /**
+     * Generate HTML barcode.
+     *
+     * @return string
+     */
+    public function getHtmlBarcode()
+    {
+        $generator = new BarcodeGeneratorHTML();
+        return $generator->getBarcode($this->barcode ?? $this->serial_number, $generator::TYPE_CODE_128, 2, 50);
+    }
+    
+    /**
+     * Generate PNG barcode.
+     *
+     * @return string
+     */
+    public function getPngBarcode()
+    {
+        $generator = new BarcodeGeneratorPNG();
+        return 'data:image/png;base64,' . base64_encode(
+            $generator->getBarcode($this->barcode ?? $this->serial_number, $generator::TYPE_CODE_128, 2, 50)
+        );
+    }
+    
+    /**
+     * Get URL for scanning barcode.
+     *
+     * @return string
+     */
+    public function getBarcodeUrl()
+    {
+        return url('/equipment/scan?code=' . ($this->barcode ?: $this->serial_number));
+    }
 
     public function sensorData()
     {
         return $this->hasMany(SensorData::class);
+    }
+    
+    /**
+     * Get checklist as array.
+     *
+     * @return array
+     */
+    public function getChecklistArrayAttribute()
+    {
+        try {
+            // Jika checklist kosong atau null
+            if (empty($this->attributes['checklist'])) {
+                return [];
+            }
+            
+            // Log tipe data untuk debugging
+            \Illuminate\Support\Facades\Log::debug('Checklist type for equipment #' . $this->id . ': ' . gettype($this->attributes['checklist']));
+            if (is_string($this->attributes['checklist'])) {
+                \Illuminate\Support\Facades\Log::debug('Checklist content: ' . substr($this->attributes['checklist'], 0, 100) . '...');
+            }
+            
+            // Jika checklist sudah berupa array
+            if (is_array($this->attributes['checklist'])) {
+                return $this->attributes['checklist'];
+            }
+            
+            // Jika checklist berupa string JSON
+            if (is_string($this->attributes['checklist'])) {
+                // Decode JSON string
+                $decoded = json_decode($this->attributes['checklist'], true);
+                
+                // Jika hasil decode valid dan berupa array
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+                
+                // Jika string bukan JSON valid, coba split berdasarkan baris baru
+                if (strpos($this->attributes['checklist'], "\n") !== false) {
+                    return array_filter(explode("\n", $this->attributes['checklist']));
+                }
+                
+                // Jika string berisi koma, coba split berdasarkan koma
+                if (strpos($this->attributes['checklist'], ',') !== false) {
+                    return array_filter(explode(',', $this->attributes['checklist']));
+                }
+                
+                // Jika semua opsi di atas gagal, mengembalikan string sebagai item tunggal dalam array
+                return [$this->attributes['checklist']];
+            }
+            
+            // Fallback untuk tipe data lain
+            return [];
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error saat konversi checklist menjadi array: ' . $e->getMessage(), [
+                'equipment_id' => $this->id,
+                'checklist_type' => gettype($this->attributes['checklist']),
+                'checklist' => is_string($this->attributes['checklist']) ? substr($this->attributes['checklist'], 0, 200) : null,
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            return [];
+        }
+    }
+
+    /**
+     * Get checklist attribute.
+     * Memastikan bahwa akses langsung ke property checklist juga mengembalikan array.
+     *
+     * @param  mixed  $value
+     * @return array
+     */
+    public function getChecklistAttribute($value)
+    {
+        if (empty($value)) {
+            return [];
+        }
+
+        if (is_array($value)) {
+            return $value;
+        }
+        
+        if (is_string($value)) {
+            try {
+                $decoded = json_decode($value, true);
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+                return [$value];
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Error decoding checklist: ' . $e->getMessage());
+                return [];
+            }
+        }
+        
+        return [];
+    }
+
+    /**
+     * Set checklist attribute.
+     * Memastikan bahwa checklist disimpan dalam format JSON.
+     *
+     * @param  mixed  $value
+     * @return void
+     */
+    public function setChecklistAttribute($value)
+    {
+        if (is_null($value)) {
+            $this->attributes['checklist'] = json_encode([]);
+        } elseif (is_array($value)) {
+            $this->attributes['checklist'] = json_encode($value);
+        } elseif (is_string($value) && !empty($value)) {
+            try {
+                $decoded = json_decode($value, true);
+                if (is_array($decoded)) {
+                    $this->attributes['checklist'] = $value;
+                } else {
+                    $this->attributes['checklist'] = json_encode([$value]);
+                }
+            } catch (\Exception $e) {
+                $this->attributes['checklist'] = json_encode([$value]);
+            }
+        } else {
+            $this->attributes['checklist'] = json_encode([]);
+        }
     }
 }

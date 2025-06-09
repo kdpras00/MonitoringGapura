@@ -19,8 +19,9 @@
         "maatwebsite/excel": "^3.1",
         "milon/barcode": "^11.0",
         "php-ai/php-ml": "^0.10.0",
+        "picqer/php-barcode-generator": "^3.2",
         "simplesoftwareio/simple-qrcode": "*",
-        "spatie/laravel-permission": "^6.15"
+        "spatie/laravel-permission": "^6.19"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

@@ -17,6 +17,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'username',
         'password',
         'role', // Hanya perlu jika masih ingin pakai role manual
         'is_approved',
@@ -49,6 +50,14 @@ class User extends Authenticatable
     public function isViewer(): bool
     {
         return $this->role === 'viewer';
+    }
+
+    /**
+     * Cek apakah user adalah supervisor.
+     */
+    public function isSupervisor(): bool
+    {
+        return $this->role === 'supervisor' || $this->hasRole('supervisor');
     }
 
     /**

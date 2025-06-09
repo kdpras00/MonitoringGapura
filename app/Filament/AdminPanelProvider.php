@@ -31,6 +31,9 @@ class AdminPanelProvider extends PanelProvider
                 Widgets\StatsOverview::class,
 
             ])
+            ->navigation(function (Panel $panel): array {
+                return $this->getNavigationItems();
+            })
             ->columns(2) // Mengatur jumlah kolom di dashboard
             ->authMiddleware([
                 Authenticate::class,
@@ -53,6 +56,12 @@ class AdminPanelProvider extends PanelProvider
             NavigationItem::make('Inventory')
                 ->url(fn(): string => Route::has('inventory.index') ? Route::get('inventory.index') : '#')
                 ->icon('heroicon-o-cube'),
+            NavigationItem::make('Approval Maintenance')
+                ->url(function(): string {
+                    return route('maintenance.supervisor');
+                })
+                ->icon('heroicon-o-check-circle')
+                ->visible(fn () => in_array(auth()->user()->role ?? '', ['admin', 'supervisor'])),
         ];
     }
 }
