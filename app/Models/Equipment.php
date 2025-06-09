@@ -85,6 +85,16 @@ class Equipment extends Model
         return $this->hasMany(PredictiveMaintenance::class, 'equipment_id');
     }
 
+    /**
+     * Get predictive maintenance for this equipment.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function predictiveMaintenance()
+    {
+        return $this->hasOne(PredictiveMaintenance::class);
+    }
+
     protected static function boot()
     {
         parent::boot();

@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\Equipment;
 use App\Models\Maintenance;
+use App\Models\PredictiveMaintenance;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
@@ -25,22 +26,30 @@ class PredictiveMaintenanceWidget extends BaseWidget
                     ->searchable()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('last_maintenance')
+                Tables\Columns\TextColumn::make('predictiveMaintenance.last_maintenance_date')
                     ->label('Maintenance Terakhir')
-                    ->formatStateUsing(fn($record) => $this->getLastMaintenanceDate($record)),
+                    ->date('d M Y')
+                    ->placeholder('Belum pernah'),
 
-                Tables\Columns\TextColumn::make('next_predicted')
-                    ->label('Prediksi Maintenance Berikutnya')
-                    ->formatStateUsing(fn($record) => $this->getPredictedMaintenanceDate($record)),
+                Tables\Columns\TextColumn::make('predictiveMaintenance.next_maintenance_date')
+                    ->label('Prediksi Berikutnya')
+                    ->date('d M Y')
+                    ->sortable(),
 
-                Tables\Columns\TextColumn::make('condition_score')
+                Tables\Columns\TextColumn::make('predictiveMaintenance.condition_score')
                     ->label('Skor Kondisi')
-                    ->formatStateUsing(fn($record) => $this->getConditionScore($record) . '%')
-                    ->color(fn($record) => $this->getConditionColor($record)),
+                    ->numeric(0)
+                    ->suffix('%')
+                    ->sortable()
+                    ->color(function ($record) {
+                        if (!$record->predictiveMaintenance) return 'gray';
+                        
+                        $score = $record->predictiveMaintenance->condition_score;
+                        return $score > 80 ? 'success' : ($score > 60 ? 'warning' : 'danger');
+                    }),
 
-                Tables\Columns\TextColumn::make('recommendation')
+                Tables\Columns\TextColumn::make('predictiveMaintenance.recommendation')
                     ->label('Rekomendasi')
-                    ->formatStateUsing(fn($record) => $this->getRecommendation($record))
                     ->wrap(),
             ])
             ->actions([
@@ -49,119 +58,67 @@ class PredictiveMaintenanceWidget extends BaseWidget
                     ->url(fn($record) => route('filament.admin.resources.maintenances.create', ['equipment_id' => $record->id]))
                     ->icon('heroicon-o-calendar')
                     ->color('primary'),
+
+                Tables\Actions\Action::make('refresh')
+                    ->label('Perbarui Prediksi')
+                    ->action(function($record) {
+                        // Perbarui prediksi untuk equipment ini
+                        $this->refreshPrediction($record);
+                    })
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('success'),
             ])
-            ->query(Equipment::query());
+            ->emptyStateHeading('Tidak ada data prediksi maintenance')
+            ->emptyStateDescription('Jalankan command untuk mengisi data prediksi maintenance.')
+            ->emptyStateIcon('heroicon-o-chart-bar')
+            ->emptyStateActions([
+                Tables\Actions\Action::make('run_command')
+                    ->label('Jalankan Command')
+                    ->url(url('/admin'))
+                    ->icon('heroicon-o-command-line'),
+            ])
+            ->query(
+                Equipment::query()
+                    ->with('predictiveMaintenance')
+            );
     }
-
-    private function getLastMaintenanceDate($equipment): string
+    
+    private function refreshPrediction($equipment)
     {
+        // Get last maintenance
         $lastMaintenance = Maintenance::where('equipment_id', $equipment->id)
             ->where('status', 'completed')
             ->latest('actual_date')
             ->first();
-
-        if (!$lastMaintenance) {
-            return 'Belum pernah';
-        }
-
-        return Carbon::parse($lastMaintenance->actual_date)->format('d M Y');
-    }
-
-    private function getPredictedMaintenanceDate($equipment): string
-    {
-        $lastMaintenance = Maintenance::where('equipment_id', $equipment->id)
-            ->where('status', 'completed')
-            ->latest('actual_date')
-            ->first();
-
-        if (!$lastMaintenance) {
-            return Carbon::parse($equipment->installation_date)->addDays(30)->format('d M Y');
-        }
-
-        // Hitung rata-rata interval maintenance dari 3 maintenance terakhir
-        $lastMaintenances = Maintenance::where('equipment_id', $equipment->id)
-            ->where('status', 'completed')
-            ->latest('actual_date')
-            ->take(3)
-            ->get();
-
-        if ($lastMaintenances->count() < 2) {
-            // Jika hanya ada 1 maintenance, gunakan default 30 hari
-            return Carbon::parse($lastMaintenance->actual_date)->addDays(30)->format('d M Y');
-        }
-
-        // Hitung rata-rata interval
-        $intervals = [];
-        $prevDate = null;
-
-        foreach ($lastMaintenances as $maintenance) {
-            $currentDate = Carbon::parse($maintenance->actual_date);
-
-            if ($prevDate) {
-                $intervals[] = $prevDate->diffInDays($currentDate);
-            }
-
-            $prevDate = $currentDate;
-        }
-
-        $avgInterval = count($intervals) > 0 ? array_sum($intervals) / count($intervals) : 30;
-
-        return Carbon::parse($lastMaintenance->actual_date)->addDays($avgInterval)->format('d M Y');
-    }
-
-    private function getConditionScore($equipment): int
-    {
-        $lastMaintenance = Maintenance::where('equipment_id', $equipment->id)
-            ->where('status', 'completed')
-            ->latest('actual_date')
-            ->first();
-
-        if (!$lastMaintenance) {
-            // Jika belum pernah maintenance, gunakan tanggal instalasi
-            $daysSinceInstallation = Carbon::parse($equipment->installation_date)->diffInDays(Carbon::now());
-            return max(0, 100 - ($daysSinceInstallation / 30) * 100);
-        }
-
-        $daysSinceLastMaintenance = Carbon::parse($lastMaintenance->actual_date)->diffInDays(Carbon::now());
-        $predictedNextDate = Carbon::parse($this->getPredictedMaintenanceDate($equipment));
-        $totalDaysInterval = Carbon::parse($lastMaintenance->actual_date)->diffInDays($predictedNextDate);
-
-        if ($totalDaysInterval == 0) {
-            return 0;
-        }
-
-        // Skor menurun secara linear dari 100% ke 0% mendekati tanggal prediksi
-        $score = 100 - ($daysSinceLastMaintenance / $totalDaysInterval) * 100;
-        return max(0, min(100, (int)$score));
-    }
-
-    private function getConditionColor($equipment): string
-    {
-        $score = $this->getConditionScore($equipment);
-
-        if ($score >= 70) {
-            return 'success';
-        } elseif ($score >= 40) {
-            return 'warning';
-        } else {
-            return 'danger';
-        }
-    }
-
-    private function getRecommendation($equipment): string
-    {
-        $score = $this->getConditionScore($equipment);
-        $predictedDate = Carbon::parse($this->getPredictedMaintenanceDate($equipment));
-        $daysUntilMaintenance = Carbon::now()->diffInDays($predictedDate, false);
-
-        if ($score < 30) {
-            return 'Segera lakukan maintenance! Equipment sudah dalam kondisi kritis.';
-        } elseif ($score < 50) {
-            return "Jadwalkan maintenance dalam {$daysUntilMaintenance} hari. Kondisi equipment memburuk.";
-        } elseif ($score < 70) {
-            return "Persiapkan maintenance dalam {$daysUntilMaintenance} hari. Pantau kondisi equipment.";
-        } else {
-            return "Equipment dalam kondisi baik. Maintenance berikutnya dalam {$daysUntilMaintenance} hari.";
-        }
+            
+        $lastMaintenanceDate = $lastMaintenance ? $lastMaintenance->actual_date : null;
+        
+        // Calculate next date (30-90 days from last maintenance or 10-30 days from now)
+        $nextMaintenanceDate = $lastMaintenanceDate 
+            ? Carbon::parse($lastMaintenanceDate)->addDays(rand(30, 90))->format('Y-m-d H:i:s')
+            : Carbon::now()->addDays(rand(10, 30))->format('Y-m-d H:i:s');
+            
+        // Calculate condition score
+        $conditionScore = $lastMaintenanceDate
+            ? max(0, min(100, 100 - Carbon::parse($lastMaintenanceDate)->diffInDays(now()) / 2))
+            : rand(50, 95);
+            
+        // Generate recommendation
+        $recommendation = $conditionScore > 80 
+            ? 'Equipment dalam kondisi baik. Pemeliharaan rutin direkomendasikan.' 
+            : ($conditionScore > 60 
+                ? 'Periksa equipment teratur. Jadwalkan inspeksi.' 
+                : 'Maintenance segera diperlukan!');
+                
+        // Save or update predictive maintenance
+        PredictiveMaintenance::updateOrCreate(
+            ['equipment_id' => $equipment->id],
+            [
+                'last_maintenance_date' => $lastMaintenanceDate,
+                'next_maintenance_date' => $nextMaintenanceDate,
+                'condition_score' => $conditionScore,
+                'recommendation' => $recommendation,
+            ]
+        );
     }
 }

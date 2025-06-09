@@ -7,9 +7,19 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use App\Events\MaintenanceReminderEvent;
 use App\Models\Maintenance;
+use App\Console\Commands\FillDashboardData;
 
 class Kernel extends ConsoleKernel
 {
+    /**
+     * The Artisan commands provided by your application.
+     *
+     * @var array
+     */
+    protected $commands = [
+        FillDashboardData::class,
+    ];
+
     /**
      * Define the application's command schedule.
      */
@@ -22,6 +32,9 @@ class Kernel extends ConsoleKernel
                 event(new MaintenanceReminderEvent($maintenance)); // 🚨 Cek apakah ini sudah dipanggil sebelumnya
             }
         })->everyMinute();
+        
+        // Jalankan command fill-data setiap hari pada jam 1 pagi
+        $schedule->command('dashboard:fill-data')->dailyAt('01:00');
     }
 
     /**

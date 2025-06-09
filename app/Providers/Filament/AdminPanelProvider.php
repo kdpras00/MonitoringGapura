@@ -21,6 +21,7 @@ use App\Filament\Widgets\MaintenanceCalendarWidget;
 use App\Filament\Widgets\MaintenanceOverviewWidget;
 use App\Filament\Widgets\MaintenanceAnalyticsWidget;
 use App\Filament\Widgets\PredictiveMaintenanceWidget;
+use App\Filament\Widgets\PredictiveMaintenanceOverview;
 use App\Filament\Widgets\EquipmentStatusWidget;
 use App\Filament\Widgets\StatsOverview;
 use App\Filament\Widgets\LatestMaintenances;
@@ -52,6 +53,7 @@ class AdminPanelProvider extends PanelProvider
                 EquipmentStatusWidget::class,
                 MaintenanceAnalyticsWidget::class,
                 PredictiveMaintenanceWidget::class,
+                PredictiveMaintenanceOverview::class,
                 SupervisorStatsOverview::class,
             ])
             ->middleware([
