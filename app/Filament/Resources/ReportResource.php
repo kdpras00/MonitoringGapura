@@ -18,7 +18,8 @@ class ReportResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
     protected static ?int $navigationSort = 6;
-    protected static ?string $navigationLabel = 'View Reports';
+    protected static ?string $navigationLabel = 'Cetak Laporan';
+    protected static ?string $navigationGroup = 'Administrator';
     protected static ?string $slug = 'reports';
 
     public static function canViewAny(): bool

@@ -12,6 +12,7 @@ use App\Filament\Resources\MaintenanceResource;
 use App\Filament\Resources\ApprovalResource;
 use App\Filament\Resources\UserResource;
 use App\Filament\Resources\RoleResource;
+use App\Filament\Resources\InspectionResource;
 use Illuminate\Support\Facades\Auth;
 
 class NavigationServiceProvider extends ServiceProvider
@@ -36,7 +37,7 @@ class NavigationServiceProvider extends ServiceProvider
                 // Admin can see all menus
                 $this->registerAdminNavigation($panel);
             } elseif ($userRole === 'technician') {
-                // Technician can only see maintenance
+                // Technician can only see inspection
                 $this->registerTechnicianNavigation($panel);
             } elseif ($userRole === 'supervisor') {
                 // Supervisor melihat approval maintenance
@@ -102,18 +103,12 @@ class NavigationServiceProvider extends ServiceProvider
     private function registerTechnicianNavigation($panel): void
     {
         $panel->navigationItems([
-            NavigationItem::make('Dashboard')
-                ->icon('heroicon-o-home')
-                ->activeIcon('heroicon-s-home')
-                ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.pages.dashboard'))
-                ->url(route('filament.admin.pages.dashboard')),
-
-            // Maintenance Management only
-            NavigationItem::make('Manage Maintenance')
-                ->icon('heroicon-o-wrench')
-                ->activeIcon('heroicon-s-wrench')
-                ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.resources.maintenances.*'))
-                ->url(route('filament.admin.resources.maintenances.index')),
+            // Hanya tampilkan menu Kelola Inspection tanpa Dashboard
+            NavigationItem::make('Kelola Inspection')
+                ->icon('heroicon-o-clipboard-document-check')
+                ->activeIcon('heroicon-s-clipboard-document-check')
+                ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.resources.inspections.*'))
+                ->url(route('filament.admin.resources.inspections.index')),
         ]);
     }
 
@@ -149,13 +144,7 @@ class NavigationServiceProvider extends ServiceProvider
     private function registerSupervisorNavigation($panel): void
     {
         $panel->navigationItems([
-            NavigationItem::make('Dashboard')
-                ->icon('heroicon-o-home')
-                ->activeIcon('heroicon-s-home')
-                ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.pages.dashboard'))
-                ->url(route('filament.admin.pages.dashboard')),
-
-            // Approval Maintenance
+            // Hanya tampilkan Approval Maintenance
             NavigationItem::make('Approval Maintenance')
                 ->icon('heroicon-o-check-badge')
                 ->activeIcon('heroicon-s-check-badge')

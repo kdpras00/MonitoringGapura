@@ -17,8 +17,9 @@ class Dashboard extends BaseDashboard
 
     public static function shouldRegisterNavigation(): bool
     {
-        // Dashboard dapat diakses oleh semua peran
-        return Auth::check();
+        // Dashboard dapat diakses oleh semua peran kecuali teknisi dan supervisor
+        $user = Auth::user();
+        return $user && !in_array($user->role, ['technician', 'supervisor']);
     }
 
     protected function getHeaderWidgets(): array
@@ -39,6 +40,7 @@ class Dashboard extends BaseDashboard
 
         // Widget untuk admin dan teknisi
         if ($user && ($user->role === 'admin' || $user->role === 'technician')) {
+            // Baris di bawah ini dinonaktifkan untuk mematikan widget
             $widgets[] = MaintenanceAnalyticsWidget::class;
             $widgets[] = PredictiveMaintenanceWidget::class;
         }

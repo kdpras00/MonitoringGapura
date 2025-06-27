@@ -1,0 +1,123 @@
+@import '/vendor/filament/filament/resources/css/theme.css';
+
+/* ==== KONFIGURASI TEMA UTAMA ==== */
+:root {
+    /* Variabel Gapura */
+    --gapura-primary: #f59e0b;
+    --gapura-secondary: #d97706;
+    --gapura-accent: #fbbf24;
+    --gapura-dark: #374151;
+    --gapura-light: #f9fafb;
+    
+    /* Override variabel Filament */
+    --primary-50: #fefce8;
+    --primary-100: #fef9c3;
+    --primary-200: #fef08a;
+    --primary-300: #fde047;
+    --primary-400: #facc15;
+    --primary-500: var(--gapura-primary);
+    --primary-600: var(--gapura-secondary);
+    --primary-700: #a16207;
+    --primary-800: #854d0e;
+    --primary-900: #713f12;
+    --primary-950: #422006;
+    
+    /* Pastikan icon dan text memiliki warna yang benar */
+    --fi-color-gray-950: var(--gapura-dark);
+    --fi-color-gray-900: var(--gapura-dark);
+    --fi-color-gray-800: #1f2937;
+    --fi-color-gray-700: #374151;
+    --fi-color-gray-600: #4b5563;
+    --fi-color-gray-500: #6b7280;
+    --fi-color-gray-400: #9ca3af;
+    --fi-color-gray-300: #d1d5db;
+    --fi-color-gray-200: #e5e7eb;
+    --fi-color-gray-100: #f3f4f6;
+    --fi-color-gray-50: var(--gapura-light);
+}
+
+/* Background hanya untuk layout login saja */
+.fi-simple-layout {
+    background-image: 
+        linear-gradient(135deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.6) 100%),
+        url('/img/gapura-background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+/* Body tanpa background image */
+body {
+    min-height: 100vh;
+}
+
+/* Konfigurasi tombol login yang menjadi putih */
+.fi-btn {
+    background-color: var(--gapura-primary);
+    color: white;
+}
+
+.fi-btn.fi-btn-color-primary {
+    background-color: var(--gapura-primary);
+    color: white;
+}
+
+.fi-btn.fi-btn-color-primary:hover {
+    background-color: var(--gapura-secondary);
+}
+
+/* Perbaikan untuk icon dan text */
+.fi-icon {
+    color: currentColor;
+}
+
+.fi-sidebar-item-icon {
+    color: var(--gapura-dark) !important;
+}
+
+.fi-sidebar-item-label {
+    color: var(--gapura-dark) !important;
+}
+
+.fi-sidebar-group-label {
+    color: var(--gapura-secondary) !important;
+}
+
+/* Panel sidebar */
+.fi-sidebar {
+    --sidebar-width: 16rem;
+    --sidebar-background: var(--gapura-light);
+    --sidebar-color: var(--gapura-dark);
+}
+
+/* Header dan navigasi */
+.fi-header {
+    --header-background: white;
+    --header-color: var(--gapura-dark);
+}
+
+/* Perbaikan untuk tab, badge, dan komponen lain */
+.fi-tabs-item-active {
+    color: var(--gapura-primary) !important;
+    border-color: var(--gapura-primary) !important;
+}
+
+.fi-badge-primary {
+    background-color: var(--gapura-primary) !important;
+    color: white !important;
+}
+
+/* Perbaikan untuk form */
+.fi-input {
+    --focus-ring-color: var(--gapura-primary);
+}
+
+.fi-select {
+    --focus-ring-color: var(--gapura-primary);
+}
+
+.fi-checkbox {
+    --checked-color: var(--gapura-primary);
+}
+

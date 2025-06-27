@@ -58,5 +58,6 @@ class Kernel extends HttpKernel
         'role' => \App\Http\Middleware\CheckRole::class,
         'public.qr' => \App\Http\Middleware\AuthenticatePublicQrCode::class,
         'supervisor' => \App\Http\Middleware\CheckSupervisorRole::class,
+        'technician' => \App\Http\Middleware\TechnicianMiddleware::class,
     ];
 }

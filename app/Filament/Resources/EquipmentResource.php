@@ -18,12 +18,13 @@ class EquipmentResource extends Resource
     protected static ?string $model = Equipment::class;
     protected static ?string $navigationIcon = 'heroicon-o-cube';
     protected static ?int $navigationSort = 2;
-    protected static ?string $navigationLabel = 'Manage Equipment';
+    protected static ?string $navigationLabel = 'Kelola Equipment';
+    protected static ?string $navigationGroup = 'Administrator';
 
     public static function canViewAny(): bool
     {
         $user = Auth::user();
-        return $user && ($user->role === 'admin' || $user->role === 'technician');
+        return $user && $user->role === 'admin';
     }
 
     public static function shouldRegisterNavigation(): bool

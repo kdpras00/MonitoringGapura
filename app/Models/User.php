@@ -21,11 +21,13 @@ class User extends Authenticatable
         'password',
         'role', // Hanya perlu jika masih ingin pakai role manual
         'is_approved',
-        'email_provider'
+        'email_provider',
+        'is_active'
     ];
 
     protected $casts = [
         'is_approved' => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     /**

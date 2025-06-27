@@ -29,7 +29,8 @@ class MaintenanceResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-wrench';
     protected static ?int $navigationSort = 3;
-    protected static ?string $navigationLabel = 'Manage Maintenance';
+    protected static ?string $navigationLabel = 'Kelola Jadwal Maintenance';
+    protected static ?string $navigationGroup = 'Administrator';
 
     public static function canViewAny(): bool
     {

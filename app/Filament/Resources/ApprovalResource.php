@@ -26,7 +26,7 @@ class ApprovalResource extends Resource
     public static function canViewAny(): bool
     {
         $user = auth()->user();
-        return $user && in_array($user->role, ['admin', 'supervisor']);
+        return $user && $user->role === 'supervisor';
     }
 
     public static function canCreate(): bool 

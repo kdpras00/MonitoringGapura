@@ -21,12 +21,13 @@ class SparePartResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-cog';
     protected static ?int $navigationSort = 5;
-    protected static ?string $navigationLabel = 'Spare Parts';
+    protected static ?string $navigationLabel = 'Kelola Sparepart';
+    protected static ?string $navigationGroup = 'Administrator';
 
     public static function canViewAny(): bool
     {
         $user = Auth::user();
-        return $user && ($user->role === 'admin' || $user->role === 'technician');
+        return $user && $user->role === 'admin';
     }
 
     public static function shouldRegisterNavigation(): bool

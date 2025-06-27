@@ -12,12 +12,11 @@ use Carbon\Carbon;
 
 class MaintenanceCalendarWidget extends Widget
 {
+    protected static ?string $heading = 'Kalender Maintenance';
+    protected static ?int $sort = 6;
+    protected int | string | array $columnSpan = 'full';
     protected static string $view = 'filament.widgets.maintenance-calendar-widget';
 
-    protected int | string | array $columnSpan = 'full';
-    
-    protected static ?int $sort = 1;
-    
     // Opsi untuk menampilkan prediksi
     public bool $showPredictions = true;
 
@@ -181,5 +180,29 @@ class MaintenanceCalendarWidget extends Widget
             // Kembalikan array kosong jika error
             return [];
         }
+    }
+
+    public function getMaintenanceEvents()
+    {
+        $maintenances = Maintenance::where('schedule_date', '>=', now()->startOfMonth())
+            ->where('schedule_date', '<=', now()->endOfMonth())
+            ->get()
+            ->map(function ($maintenance) {
+                return [
+                    'id' => $maintenance->id,
+                    'title' => $maintenance->equipment->name ?? 'Maintenance',
+                    'start' => $maintenance->schedule_date,
+                    'url' => route('filament.admin.resources.maintenances.edit', $maintenance),
+                    'backgroundColor' => match ($maintenance->status) {
+                        'planned' => '#3b82f6', // blue
+                        'in-progress' => '#f59e0b', // amber
+                        'completed' => '#10b981', // green
+                        default => '#6b7280', // gray
+                    },
+                ];
+            })
+            ->toArray();
+
+        return json_encode($maintenances);
     }
 }

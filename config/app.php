@@ -151,6 +151,9 @@ return [
         // Tambahkan provider untuk Simple QrCode
         SimpleSoftwareIO\QrCode\QrCodeServiceProvider::class,
         Milon\Barcode\BarcodeServiceProvider::class,
+        
+        // Filament Panel Providers
+        App\Filament\TechnicianPanelProvider::class,
 
         // Custom providers
         // App\Providers\Filament\NavigationServiceProvider::class,

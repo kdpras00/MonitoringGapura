@@ -26,6 +26,12 @@ class SupervisorRoleResource extends Resource
     
     protected static ?string $pluralModelLabel = 'Role Supervisor';
     
+    // Menonaktifkan navigasi untuk resource ini
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+    
     public static function form(Form $form): Form
     {
         return $form

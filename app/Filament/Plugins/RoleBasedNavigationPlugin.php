@@ -40,13 +40,13 @@ class RoleBasedNavigationPlugin implements Plugin
             // Log untuk debugging
             Log::info('User role detected: ' . $userRole);
 
-            // Dashboard untuk semua pengguna
+            // Home untuk semua pengguna
             $builder->item(
-                NavigationItem::make('Dashboard')
+                NavigationItem::make('Home')
                     ->icon('heroicon-o-home')
                     ->activeIcon('heroicon-s-home')
                     ->sort(1)
-                    ->url('/admin')
+                    ->url('/admin/home')
             );
 
             // Menu untuk Admin
@@ -127,7 +127,7 @@ class RoleBasedNavigationPlugin implements Plugin
                 );
             }
 
-            // Viewer hanya melihat dashboard yang sudah ditambahkan
+            // Viewer hanya melihat home yang sudah ditambahkan
 
             return $builder;
         });

@@ -18,12 +18,13 @@ class TechnicianResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
     protected static ?int $navigationSort = 4;
-    protected static ?string $navigationLabel = 'Technicians';
+    protected static ?string $navigationLabel = 'Kelola Teknisi';
+    protected static ?string $navigationGroup = 'Administrator';
 
     public static function canViewAny(): bool
     {
         $user = Auth::user();
-        return $user && ($user->role === 'admin' || $user->role === 'technician');
+        return $user && $user->role === 'admin';
     }
 
     public static function shouldRegisterNavigation(): bool

@@ -146,9 +146,12 @@ Route::post('/notifications/mark-all-as-read', [NotificationController::class, '
 
 
 
-Filament::registerPages([
-    Dashboard::class,
-]);
+// Hanya tampilkan Dashboard untuk non-teknisi dan non-supervisor
+if (auth()->check() && !in_array(auth()->user()->role, ['technician', 'supervisor'])) {
+    Filament::registerPages([
+        Dashboard::class,
+    ]);
+}
 
 // Maintenance Routes
 Route::prefix('maintenance')->name('maintenance.')->group(function () {
