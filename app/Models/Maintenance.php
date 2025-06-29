@@ -152,7 +152,31 @@ class Maintenance extends Model
      */
     public function isCompleted()
     {
-        return $this->status === 'completed';
+        return $this->status === 'completed'; // Status completed berarti sudah diverifikasi oleh supervisor
+    }
+
+    /**
+     * Check if maintenance is in progress.
+     */
+    public function isInProgress()
+    {
+        return $this->status === 'in-progress';
+    }
+
+    /**
+     * Check if maintenance is pending approval.
+     */
+    public function isPendingApproval()
+    {
+        return $this->status === 'pending'; // Status pending berarti menunggu approval dari supervisor
+    }
+
+    /**
+     * Check if maintenance is waiting for verification.
+     */
+    public function isWaitingVerification()
+    {
+        return $this->status === 'pending'; // Status pending sama dengan menunggu verifikasi
     }
 
     /**
@@ -169,14 +193,6 @@ class Maintenance extends Model
     public function isRejected()
     {
         return $this->approval_status === 'rejected';
-    }
-
-    /**
-     * Check if maintenance is pending approval.
-     */
-    public function isPendingApproval()
-    {
-        return $this->isCompleted() && $this->approval_status === 'pending';
     }
 
     /**
@@ -207,5 +223,30 @@ class Maintenance extends Model
     public function getNextServiceDateAttribute($value)
     {
         return $value ? Carbon::parse($value) : null;
+    }
+
+    /**
+     * Get all inspection records for this maintenance.
+     */
+    public function inspections()
+    {
+        return $this->hasMany(Inspection::class, 'technician_id', 'technician_id')
+            ->where('equipment_id', $this->equipment_id);
+    }
+    
+    /**
+     * Get the latest inspection for this maintenance.
+     */
+    public function getLatestInspectionAttribute()
+    {
+        return $this->inspections()->latest()->first();
+    }
+
+    /**
+     * Check if maintenance has an associated inspection.
+     */
+    public function hasInspection()
+    {
+        return $this->inspections()->exists();
     }
 }

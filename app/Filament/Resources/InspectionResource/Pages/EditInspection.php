@@ -26,6 +26,11 @@ class EditInspection extends EditRecord
             $data['completion_date'] = now();
         }
         
+        // Pastikan selalu ada completion_date
+        if (empty($data['completion_date']) && in_array($data['status'], ['completed', 'verified', 'rejected'])) {
+            $data['completion_date'] = now();
+        }
+        
         return $data;
     }
     
@@ -40,5 +45,12 @@ class EditInspection extends EditRecord
             ->success()
             ->title('Inspeksi diperbarui')
             ->body('Data inspeksi berhasil diperbarui.');
+    }
+    
+    public static function canAccess(array $parameters = []): bool
+    {
+        $user = auth()->user();
+        // Only admin and supervisor can edit inspections directly
+        return $user && !$user->isTechnician();
     }
 } 

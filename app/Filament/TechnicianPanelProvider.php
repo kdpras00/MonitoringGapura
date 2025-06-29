@@ -6,6 +6,7 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Panel;
 use Filament\PanelProvider;
 use App\Filament\Resources\InspectionResource;
+use App\Filament\Resources\MaintenanceResource;
 use App\Http\Middleware\TechnicianMiddleware;
 
 class TechnicianPanelProvider extends PanelProvider
@@ -34,8 +35,14 @@ class TechnicianPanelProvider extends PanelProvider
             ->brandName('Teknisi - Monitoring Gapura')
             ->authGuard('web')
             ->discoverResources(false, app_path('Filament/Resources'))
+            // Resource yang ditampilkan di navigasi
+            ->navigationItems([
+                InspectionResource::class,
+            ])
+            // Resource yang didaftarkan (dapat diakses melalui link) tetapi tidak tampil di navigasi
             ->resources([
                 InspectionResource::class,
+                MaintenanceResource::class,
             ])
             ->authMiddleware([
                 Authenticate::class,

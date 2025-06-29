@@ -4,16 +4,15 @@ namespace App\Filament\Pages;
 
 use Filament\Pages\Dashboard as BaseDashboard;
 use Illuminate\Support\Facades\Auth;
-use App\Filament\Widgets\MaintenanceOverviewWidget;
-use App\Filament\Widgets\MaintenanceAnalyticsWidget;
-use App\Filament\Widgets\MaintenanceCalendarWidget;
-use App\Filament\Widgets\PredictiveMaintenanceWidget;
-use App\Filament\Widgets\EquipmentStatusWidget;
+use App\Filament\Widgets\DashboardStatsWidget;
+use App\Filament\Widgets\LatestMaintenancesWidget;
 
 class Dashboard extends BaseDashboard
 {
     protected static ?string $navigationIcon = 'heroicon-o-home';
     protected static ?int $navigationSort = 1;
+    protected static ?string $navigationLabel = 'Selamat Datang';
+    protected static ?string $title = 'Selamat Datang di Monitoring Maintenance Gapura Angkasa';
 
     public static function shouldRegisterNavigation(): bool
     {
@@ -25,26 +24,23 @@ class Dashboard extends BaseDashboard
     protected function getHeaderWidgets(): array
     {
         return [
-            MaintenanceOverviewWidget::class,
+            DashboardStatsWidget::class,
         ];
     }
 
     protected function getFooterWidgets(): array
     {
-        $user = Auth::user();
-        $widgets = [];
-
-        // Widget untuk semua peran
-        $widgets[] = MaintenanceCalendarWidget::class;
-        $widgets[] = EquipmentStatusWidget::class;
-
-        // Widget untuk admin dan teknisi
-        if ($user && ($user->role === 'admin' || $user->role === 'technician')) {
-            // Baris di bawah ini dinonaktifkan untuk mematikan widget
-            $widgets[] = MaintenanceAnalyticsWidget::class;
-            $widgets[] = PredictiveMaintenanceWidget::class;
-        }
-
-        return $widgets;
+        return [
+            LatestMaintenancesWidget::class,
+        ];
+    }
+    
+    public function getWidgets(): array
+    {
+        // Hanya kembalikan widget yang kita inginkan
+        return [
+            DashboardStatsWidget::class,
+            LatestMaintenancesWidget::class,
+        ];
     }
 }

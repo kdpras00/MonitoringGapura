@@ -13,8 +13,7 @@ class ListInspections extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()
-                ->label('Tambah Inspeksi Baru'),
+            // Tombol tambah inspeksi baru dihapus karena inspeksi ditentukan oleh tim maintenance
         ];
     }
 } 

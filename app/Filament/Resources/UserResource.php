@@ -69,13 +69,16 @@ class UserResource extends Resource
                             ->maxLength(255)
                             ->dehydrated(fn($state) => !empty($state))
                             ->dehydrateStateUsing(fn($state) => !empty($state) ? Hash::make($state) : null)
-                            ->required(fn (string $operation): bool => $operation === 'create'),
+                            ->required(fn (string $operation): bool => $operation === 'create')
+                            ->placeholder(fn (string $operation): string => $operation === 'edit' ? 'Biarkan kosong jika tidak ingin mengubah kata sandi' : '')
+                            ->helperText(fn (string $operation): string => $operation === 'edit' ? 'Field ini kosong. Isi hanya jika ingin mengubah kata sandi.' : ''),
 
                         Forms\Components\TextInput::make('password_confirmation')
                             ->label('Konfirmasi Kata Sandi')
                             ->password()
                             ->requiredWith('password')
-                            ->same('password'),
+                            ->same('password')
+                            ->placeholder(fn (string $operation): string => $operation === 'edit' ? 'Konfirmasi kata sandi baru' : ''),
 
                         Forms\Components\Toggle::make('is_active')
                             ->label('Status Aktif')

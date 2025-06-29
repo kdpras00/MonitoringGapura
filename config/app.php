@@ -157,6 +157,7 @@ return [
 
         // Custom providers
         // App\Providers\Filament\NavigationServiceProvider::class,
+        App\Providers\FilamentServiceProvider::class,
 
     ],
 

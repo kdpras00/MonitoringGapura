@@ -75,15 +75,6 @@ class NavigationServiceProvider extends ServiceProvider
                 ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.resources.maintenances.*'))
                 ->url(route('filament.admin.resources.maintenances.index')),
                 
-            // Approval Maintenance
-            NavigationItem::make('Approval Maintenance')
-                ->icon('heroicon-o-check-badge')
-                ->activeIcon('heroicon-s-check-badge')
-                ->badge(fn() => \App\Models\Maintenance::where('approval_status', 'pending')->count() ?: null)
-                ->badgeColor('warning')
-                ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.resources.approvals.*'))
-                ->url(route('filament.admin.resources.approvals.index')),
-
             // Reports
             NavigationItem::make('View Reports')
                 ->icon('heroicon-o-document-chart-bar')
@@ -144,7 +135,16 @@ class NavigationServiceProvider extends ServiceProvider
     private function registerSupervisorNavigation($panel): void
     {
         $panel->navigationItems([
-            // Hanya tampilkan Approval Maintenance
+            // Tampilkan Verification Inspection
+            NavigationItem::make('Verification Inspection')
+                ->icon('heroicon-o-clipboard-document-list')
+                ->activeIcon('heroicon-s-clipboard-document-list')
+                ->badge(fn() => \App\Models\Inspection::where('status', 'completed')->count() ?: null)
+                ->badgeColor('success')
+                ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.resources.verifications.*'))
+                ->url(route('filament.admin.resources.verifications.index')),
+                
+            // Tambahkan Approval Maintenance
             NavigationItem::make('Approval Maintenance')
                 ->icon('heroicon-o-check-badge')
                 ->activeIcon('heroicon-s-check-badge')

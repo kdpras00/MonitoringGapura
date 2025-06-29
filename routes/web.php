@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\EquipmentController;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PredictiveMaintenanceController;
@@ -14,28 +15,17 @@ use Filament\Facades\Filament;
 use Filament\Pages\Dashboard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 
-Route::post('/admin/login', function (Request $request) {
-    $credentials = $request->validate([
-        'email' => 'required|email',
-        'password' => 'required',
-    ]);
-
-    if (Auth::attempt($credentials)) {
-        $request->session()->regenerate();
-        return redirect()->intended('/admin'); // Redirect ke dashboard admin
-    }
-
-    return back()->withErrors([
-        'email' => 'Email atau password salah.',
-    ]);
-})->name('filament.auth.attempt');
+// Route login admin dinonaktifkan karena sudah menggunakan unified login
 
 Route::get('/', function () {
-    // return view('home');
-    return redirect('/admin');
+    if (Auth::check()) {
+        // Jika sudah login, redirect ke controller unified untuk menentukan halaman tujuan
+        return app(App\Http\Controllers\Auth\UnifiedLoginController::class)->redirectBasedOnRole();
+    }
+    // Jika belum login, arahkan ke halaman login unified
+    return redirect()->route('unified.login');
 });
 
 // Public routes for QR Code access (no authentication required)
@@ -115,6 +105,19 @@ Route::middleware(['auth'])->group(function () {
     // Print QR Code
     Route::get('/equipment/{id}/print-qr', [EquipmentController::class, 'printQrCode'])->name('equipment.print-qr');
 });
+
+// Route login terpadu (unified login)
+Route::get('/login', [App\Http\Controllers\Auth\UnifiedLoginController::class, 'showLoginForm'])
+    ->name('unified.login');
+Route::post('/login', [App\Http\Controllers\Auth\UnifiedLoginController::class, 'login']);
+Route::post('/logout', [App\Http\Controllers\Auth\UnifiedLoginController::class, 'logout'])
+    ->middleware('auth')
+    ->name('unified.logout');
+
+// Route untuk panel teknisi
+Route::get('/sync-technician', [App\Http\Controllers\TechnicianPanelController::class, 'syncTechnicianStatus'])
+    ->middleware(['auth'])
+    ->name('sync.technician');
 
 // Memasukkan route authentication dari Laravel Breeze/Fortify
 require __DIR__ . '/auth.php';

@@ -2,7 +2,7 @@
 
 namespace App\Filament\Pages;
 
-use Filament\Pages\Dashboard;
+use Filament\Pages\Page;
 use Illuminate\Support\Facades\Auth;
 use App\Filament\Widgets\EquipmentStatsWidget;
 use App\Filament\Widgets\MaintenanceOverviewWidget;
@@ -11,13 +11,24 @@ use App\Filament\Widgets\EquipmentChartWidget;
 use App\Filament\Widgets\MaintenanceCalendarWidget;
 use App\Filament\Widgets\LatestMaintenancesWidget;
 use App\Filament\Widgets\MaintenanceAnalyticsWidget;
+use App\Filament\Widgets\DashboardStatsWidget;
 
-class AdminDashboard extends Dashboard
+class AdminDashboard extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-home';
     protected static ?int $navigationSort = 0;
-    protected static string $view = 'filament.pages.admin-dashboard';
-
+    protected static ?string $navigationLabel = 'Selamat Datang';
+    protected static string $view = 'filament.pages.dashboard';
+    protected static ?string $title = 'Selamat Datang di Monitoring Maintenance Gapura Angkasa';
+    
+    // Explicitly set the correct route for admin panel with a unique name
+    protected static ?string $slug = 'admin-home';
+    
+    public static function getNavigationGroup(): ?string
+    {
+        return null;
+    }
+    
     public static function shouldRegisterNavigation(): bool
     {
         // Dashboard hanya untuk admin
@@ -28,30 +39,23 @@ class AdminDashboard extends Dashboard
     protected function getHeaderWidgets(): array
     {
         return [
-            EquipmentStatsWidget::class,
-            MaintenanceOverviewWidget::class,
+            DashboardStatsWidget::class,
         ];
     }
 
-    protected function getWidgets(): array
+    protected function getFooterWidgets(): array
     {
         return [
-            EquipmentChartWidget::class,
-            MaintenanceChartWidget::class,
-            MaintenanceCalendarWidget::class,
-            MaintenanceAnalyticsWidget::class,
             LatestMaintenancesWidget::class,
         ];
     }
-
-    public function getColumns(): int | array
+    
+    public function getWidgets(): array
     {
+        // Hanya kembalikan widget yang kita inginkan
         return [
-            'default' => 1,
-            'sm' => 2,
-            'md' => 3,
-            'lg' => 3,
-            'xl' => 3,
+            DashboardStatsWidget::class,
+            LatestMaintenancesWidget::class,
         ];
     }
 } 

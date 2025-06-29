@@ -80,64 +80,27 @@ class ApprovalResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function (Builder $query) {
+                $query->where('status', 'completed')
+                    ->whereNotNull('technician_id')  // Hanya tampilkan yang sudah ditugaskan ke teknisi
+                    ->orderBy('actual_date', 'desc');
+            })
             ->columns([
                 TextColumn::make('equipment.name')
                     ->label('Peralatan')
                     ->searchable()
                     ->sortable(),
-
                 TextColumn::make('actual_date')
                     ->label('Tanggal Selesai')
-                    ->dateTime('d M Y')
+                    ->dateTime()
                     ->sortable(),
-
-                TextColumn::make('technician_id')
-                    ->label('Teknisi')
-                    ->formatStateUsing(fn ($state, Maintenance $record) => 
-                        $record->technician ? $record->technician->name : '-')
-                    ->searchable(),
-
-                Tables\Columns\TextColumn::make('result')
-                    ->label('Hasil')
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'good' => 'Baik',
-                        'partial' => 'Sebagian',
-                        'failed' => 'Gagal',
-                        default => $state,
-                    })
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'good' => 'success',
-                        'partial' => 'warning',
-                        'failed' => 'danger',
-                        default => 'secondary',
-                    }),
-
-                Tables\Columns\TextColumn::make('approval_status')
-                    ->label('Status')
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'pending' => 'Menunggu',
-                        'approved' => 'Disetujui',
-                        'rejected' => 'Ditolak',
-                        default => $state,
-                    })
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'pending' => 'warning',
-                        'approved' => 'success',
-                        'rejected' => 'danger',
-                        default => 'secondary',
-                    }),
+                TextColumn::make('equipment_type')
+                    ->label('Jenis Peralatan'),
+                // Kolom approval_status dihilangkan
             ])
             ->defaultSort('actual_date', 'desc')
             ->filters([
-                Tables\Filters\SelectFilter::make('approval_status')
-                    ->options([
-                        'pending' => 'Menunggu',
-                        'approved' => 'Disetujui',
-                        'rejected' => 'Ditolak',
-                    ])
-                    ->default('pending'),
+                // Filter approval_status dihilangkan
             ])
             ->actions([
                 Tables\Actions\Action::make('approve')

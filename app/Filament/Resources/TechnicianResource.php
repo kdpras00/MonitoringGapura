@@ -55,14 +55,24 @@ class TechnicianResource extends Resource
                     ->password()
                     ->maxLength(255)
                     ->dehydrated(fn($state) => !empty($state))
-                    ->dehydrateStateUsing(fn($state) => !empty($state) ? Hash::make($state) : null),
+                    ->dehydrateStateUsing(fn($state) => !empty($state) ? Hash::make($state) : null)
+                    ->required(fn (string $operation): bool => $operation === 'create')
+                    ->placeholder(fn (string $operation): string => $operation === 'edit' ? 'Biarkan kosong jika tidak ingin mengubah kata sandi' : '')
+                    ->helperText(fn (string $operation): string => $operation === 'edit' ? 'Field ini kosong. Isi hanya jika ingin mengubah kata sandi.' : ''),
 
                 Forms\Components\Toggle::make('is_approved')
                     ->label('Disetujui')
                     ->default(true),
+                    
+                Forms\Components\Toggle::make('is_active')
+                    ->label('Status Aktif')
+                    ->helperText('Nonaktifkan untuk melarang teknisi mengakses sistem')
+                    ->default(true),
 
                 Forms\Components\Hidden::make('role')
-                    ->default('technician'),
+                    ->default('technician')
+                    ->dehydrated(true)
+                    ->required(),
             ]);
     }
 

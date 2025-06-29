@@ -120,12 +120,4 @@ class User extends Authenticatable
     {
         return $this->telegram_chat_id ?? null;
     }
-
-    /**
-     * Relasi langsung ke permissions (Opsional, bisa dihapus jika pakai HasRoles).
-     */
-    public function permissions()
-    {
-        return $this->belongsToMany(Permission::class);
-    }
 }

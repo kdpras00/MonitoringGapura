@@ -19,11 +19,23 @@ class CreateInspection extends CreateRecord
             $data['location_timestamp'] = now();
         }
         
+        // Tambahkan completion_date jika status completed
+        if ($data['status'] === 'completed' && empty($data['completion_date'])) {
+            $data['completion_date'] = now();
+        }
+        
         return $data;
     }
     
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');
+    }
+    
+    public static function canAccess(array $parameters = []): bool
+    {
+        $user = auth()->user();
+        // Only admin and supervisor can create inspections directly
+        return $user && ($user->role === 'admin' || $user->role === 'supervisor');
     }
 } 

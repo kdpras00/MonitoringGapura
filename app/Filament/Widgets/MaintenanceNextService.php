@@ -44,12 +44,14 @@ class MaintenanceNextService extends TableWidget
                     ->formatStateUsing(fn($state) => match ($state) {
                         'planned' => 'Terjadwal',
                         'in-progress' => 'Dalam Proses',
+                        'pending' => 'Menunggu Verifikasi',
                         'completed' => 'Selesai',
                         default => $state,
                     })
                     ->colors([
                         'warning' => 'planned',
                         'primary' => 'in-progress',
+                        'purple' => 'pending',
                         'success' => 'completed',
                     ])
                     ->sortable(),

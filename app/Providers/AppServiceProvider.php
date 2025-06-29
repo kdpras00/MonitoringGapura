@@ -13,8 +13,18 @@ use Filament\Notifications\Notification; // Pastikan ini dari Filament
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function boot()
+    public function boot(): void
     {
+        // Fix asset URL if using artisan serve or non-standard port
+        if ($this->app->environment('local')) {
+            $this->app['url']->forceRootUrl(config('app.url'));
+        }
+        
+        // Force HTTPS in production
+        if ($this->app->environment('production')) {
+            \URL::forceScheme('https');
+        }
+
         // Bagikan data maintenance ke semua view (lazy loading dengan closure)
         View::share('maintenances', fn() => Maintenance::latest()->get());
 

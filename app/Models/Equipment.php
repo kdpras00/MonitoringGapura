@@ -54,7 +54,7 @@ class Equipment extends Model
      */
     public function maintenances()
     {
-        return $this->hasMany(Maintenance::class, 'equipment_id', 'equipment_id');
+        return $this->hasMany(Maintenance::class);
     }
 
     /**
@@ -299,5 +299,21 @@ class Equipment extends Model
         } else {
             $this->attributes['checklist'] = json_encode([]);
         }
+    }
+
+    /**
+     * Get all inspection records for this equipment.
+     */
+    public function inspections()
+    {
+        return $this->hasMany(Inspection::class);
+    }
+    
+    /**
+     * Get the latest inspection for this equipment.
+     */
+    public function latestInspection()
+    {
+        return $this->inspections()->latest()->first();
     }
 }

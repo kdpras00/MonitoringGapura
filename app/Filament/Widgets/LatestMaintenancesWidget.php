@@ -34,8 +34,16 @@ class LatestMaintenancesWidget extends BaseWidget
                 ->colors([
                     'secondary' => 'planned',
                     'warning' => 'in-progress',
+                    'purple' => 'pending',
                     'success' => 'completed',
-                ]),
+                ])
+                ->formatStateUsing(fn (string $state): string => match ($state) {
+                    'planned' => 'Terjadwal',
+                    'in-progress' => 'Dalam Proses',
+                    'pending' => 'Menunggu Verifikasi',
+                    'completed' => 'Selesai',
+                    default => $state,
+                }),
             Tables\Columns\TextColumn::make('created_at')
                 ->label('Dibuat')
                 ->dateTime()

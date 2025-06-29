@@ -27,6 +27,8 @@ use App\Filament\Widgets\StatsOverview;
 use App\Filament\Widgets\LatestMaintenances;
 use App\Filament\Widgets\SupervisorStatsOverview;
 use App\Filament\Pages\AdminDashboard;
+use App\Filament\Widgets\DashboardStatsWidget;
+use App\Filament\Widgets\LatestMaintenancesWidget;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -48,15 +50,10 @@ class AdminPanelProvider extends PanelProvider
                 // Dashboard kustom
                 AdminDashboard::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                MaintenanceOverviewWidget::class,
-                MaintenanceCalendarWidget::class,
-                EquipmentStatusWidget::class,
-                MaintenanceAnalyticsWidget::class, 
-                PredictiveMaintenanceWidget::class,
-                PredictiveMaintenanceOverview::class,
-                SupervisorStatsOverview::class,
+                // Hanya daftarkan widget yang diminta
+                DashboardStatsWidget::class,
+                LatestMaintenancesWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
