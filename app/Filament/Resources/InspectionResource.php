@@ -75,6 +75,8 @@ class InspectionResource extends Resource
                     ->label('Status')
                     ->options([
                         'pending' => 'Belum Selesai',
+                        'in-progress' => 'Sedang Dikerjakan',
+                        'pending-verification' => 'Menunggu Verifikasi',
                         'completed' => 'Selesai',
                         'verified' => 'Terverifikasi',
                         'rejected' => 'Ditolak',
@@ -198,7 +200,8 @@ class InspectionResource extends Resource
             ->modifyQueryUsing(function (Builder $query) use ($isTechnician, $isSupervisor, $user) {
                 // Teknisi hanya melihat inspection yang ditugaskan kepadanya
                 if ($isTechnician) {
-                    $query->where('technician_id', $user->id);
+                    $query->where('technician_id', $user->id)
+                          ->whereNotIn('status', ['verified', 'rejected']); // Inspeksi yang sudah diverifikasi atau ditolak tidak muncul
                 }
 
                 // Supervisor hanya melihat inspection yang status completed
@@ -304,7 +307,11 @@ class InspectionResource extends Resource
                             ->first();
 
                         if ($maintenance) {
-                            $maintenance->status = 'completed'; // completed berarti sudah diverifikasi oleh supervisor
+                            $maintenance->status = Maintenance::STATUS_VERIFIED; // verified berarti sudah diverifikasi oleh supervisor
+                            $maintenance->approval_status = 'approved';
+                            $maintenance->approval_notes = $data['verification_notes'] ?? 'Terverifikasi oleh supervisor';
+                            $maintenance->approved_by = auth()->id();
+                            $maintenance->approval_date = now();
                             $maintenance->actual_date = now();
                             $maintenance->save();
                         }
@@ -325,14 +332,23 @@ class InspectionResource extends Resource
                             ->required(),
                     ])
                     ->action(function (Inspection $record, array $data) {
-                        // Gunakan konstanta status dari model
-                        $record->fill([
-                            'status' => \App\Models\Inspection::STATUS_REJECTED,
-                            'verification_notes' => $data['verification_notes'],
-                            'verification_date' => now(),
-                            'verified_by' => auth()->id()
-                        ]);
-                        $record->save();
+                        // Gunakan metode safeReject dari trait StatusSafety
+                        $record->safeReject($data['verification_notes'], auth()->id());
+
+                        // Update status maintenance menjadi rejected jika ada
+                        $maintenance = Maintenance::where('equipment_id', $record->equipment_id)
+                            ->where('technician_id', $record->technician_id)
+                            ->whereIn('status', ['in-progress', 'planned', 'pending'])
+                            ->first();
+
+                        if ($maintenance) {
+                            $maintenance->status = Maintenance::STATUS_REJECTED;
+                            $maintenance->approval_status = 'rejected';
+                            $maintenance->approval_notes = $data['verification_notes'];
+                            $maintenance->approved_by = auth()->id();
+                            $maintenance->approval_date = now();
+                            $maintenance->save();
+                        }
 
                         Notification::make()
                             ->title('Inspection ditolak')
@@ -349,12 +365,8 @@ class InspectionResource extends Resource
                     ->modalDescription('Apakah Anda yakin ingin mengembalikan status inspeksi ini ke "Belum Selesai"? Tindakan ini akan memungkinkan teknisi untuk mengedit dan mengupload ulang foto.')
                     ->modalSubmitActionLabel('Ya, Kembalikan Status')
                     ->action(function (Inspection $record) {
-                        // Gunakan konstanta status dari model
-                        $record->fill([
-                            'status' => \App\Models\Inspection::STATUS_PENDING,
-                            'completion_date' => null
-                        ]);
-                        $record->save();
+                        // Gunakan metode safeReturnToPending dari trait StatusSafety
+                        $record->safeReturnToPending();
 
                         Notification::make()
                             ->title('Status inspeksi dikembalikan')

@@ -13,6 +13,18 @@ class Maintenance extends Model
     use HasFactory;
 
     /**
+     * Status constants
+     */
+    const STATUS_PENDING = 'pending';     // Reported / Pending Approval
+    const STATUS_PLANNED = 'planned';     // Jadwal sudah disusun, belum ada teknisi
+    const STATUS_ASSIGNED = 'assigned';   // Teknisi sudah ditugaskan
+    const STATUS_IN_PROGRESS = 'in-progress'; // Sedang dikerjakan (foto sebelum)
+    const STATUS_PENDING_VERIFICATION = 'pending-verification'; // Menunggu verifikasi (foto sesudah)
+    const STATUS_VERIFIED = 'verified';   // Sudah diverifikasi oleh supervisor
+    const STATUS_REJECTED = 'rejected';   // Ditolak oleh supervisor
+    const STATUS_COMPLETED = 'completed'; // Selesai sepenuhnya (opsional)
+
+    /**
      * The table associated with the model.
      *
      * @var string
@@ -152,7 +164,15 @@ class Maintenance extends Model
      */
     public function isCompleted()
     {
-        return $this->status === 'completed'; // Status completed berarti sudah diverifikasi oleh supervisor
+        return $this->status === self::STATUS_COMPLETED;
+    }
+
+    /**
+     * Check if maintenance has been verified.
+     */
+    public function isVerified()
+    {
+        return $this->status === self::STATUS_VERIFIED;
     }
 
     /**
@@ -160,7 +180,7 @@ class Maintenance extends Model
      */
     public function isInProgress()
     {
-        return $this->status === 'in-progress';
+        return $this->status === self::STATUS_IN_PROGRESS;
     }
 
     /**
@@ -168,7 +188,23 @@ class Maintenance extends Model
      */
     public function isPendingApproval()
     {
-        return $this->status === 'pending'; // Status pending berarti menunggu approval dari supervisor
+        return $this->status === self::STATUS_PENDING;
+    }
+
+    /**
+     * Check if maintenance is planned.
+     */
+    public function isPlanned()
+    {
+        return $this->status === self::STATUS_PLANNED;
+    }
+
+    /**
+     * Check if maintenance is assigned.
+     */
+    public function isAssigned()
+    {
+        return $this->status === self::STATUS_ASSIGNED;
     }
 
     /**
@@ -176,7 +212,15 @@ class Maintenance extends Model
      */
     public function isWaitingVerification()
     {
-        return $this->status === 'pending'; // Status pending sama dengan menunggu verifikasi
+        return $this->status === self::STATUS_PENDING_VERIFICATION;
+    }
+
+    /**
+     * Check if maintenance has been rejected.
+     */
+    public function isRejected()
+    {
+        return $this->status === self::STATUS_REJECTED || $this->approval_status === 'rejected';
     }
 
     /**
@@ -185,14 +229,6 @@ class Maintenance extends Model
     public function isApproved()
     {
         return $this->approval_status === 'approved';
-    }
-
-    /**
-     * Check if maintenance has been rejected.
-     */
-    public function isRejected()
-    {
-        return $this->approval_status === 'rejected';
     }
 
     /**

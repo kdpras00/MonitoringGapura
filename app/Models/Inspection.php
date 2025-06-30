@@ -18,10 +18,12 @@ class Inspection extends Model
     /**
      * Status constants
      */
-    const STATUS_PENDING = 'pending';
-    const STATUS_COMPLETED = 'completed';
-    const STATUS_VERIFIED = 'verified';
-    const STATUS_REJECTED = 'rejected';
+    const STATUS_PENDING = 'pending';     // Belum dimulai
+    const STATUS_IN_PROGRESS = 'in-progress'; // Sedang dikerjakan (baru upload foto sebelum)
+    const STATUS_PENDING_VERIFICATION = 'pending-verification'; // Menunggu verifikasi (foto sebelum dan sesudah)
+    const STATUS_COMPLETED = 'completed'; // Sudah selesai dari sisi teknisi (upload foto sebelum dan sesudah)
+    const STATUS_VERIFIED = 'verified';   // Sudah diverifikasi oleh supervisor
+    const STATUS_REJECTED = 'rejected';   // Ditolak oleh supervisor
 
     /**
      * The attributes that are mass assignable.
@@ -103,12 +105,25 @@ class Inspection extends Model
         // Khusus untuk kolom status
         if ($key === 'status') {
             // Pastikan value sama persis dengan salah satu nilai enum yang valid
-            $validValues = [self::STATUS_PENDING, self::STATUS_COMPLETED, self::STATUS_VERIFIED, self::STATUS_REJECTED];
+            $validValues = [
+                self::STATUS_PENDING, 
+                self::STATUS_IN_PROGRESS,
+                self::STATUS_PENDING_VERIFICATION,
+                self::STATUS_COMPLETED, 
+                self::STATUS_VERIFIED, 
+                self::STATUS_REJECTED
+            ];
 
             if (!in_array($value, $validValues)) {
                 // Convert unquoted/invalid status to valid status
                 if (strtolower($value) == 'pending' || $value === self::STATUS_PENDING) {
                     $value = self::STATUS_PENDING;
+                }
+                elseif (strtolower($value) == 'in-progress' || $value === self::STATUS_IN_PROGRESS) {
+                    $value = self::STATUS_IN_PROGRESS;
+                }
+                elseif (strtolower($value) == 'pending-verification' || $value === self::STATUS_PENDING_VERIFICATION) {
+                    $value = self::STATUS_PENDING_VERIFICATION;
                 }
                 elseif (strtolower($value) == 'completed' || $value === self::STATUS_COMPLETED) {
                     $value = self::STATUS_COMPLETED;
@@ -137,12 +152,25 @@ class Inspection extends Model
         // Sebelum save, pastikan status adalah nilai yang valid
         if (isset($this->attributes['status'])) {
             $status = $this->attributes['status'];
-            $validValues = [self::STATUS_PENDING, self::STATUS_COMPLETED, self::STATUS_VERIFIED, self::STATUS_REJECTED];
+            $validValues = [
+                self::STATUS_PENDING, 
+                self::STATUS_IN_PROGRESS,
+                self::STATUS_PENDING_VERIFICATION,
+                self::STATUS_COMPLETED, 
+                self::STATUS_VERIFIED, 
+                self::STATUS_REJECTED
+            ];
 
             if (!in_array($status, $validValues)) {
                 // Jika tidak valid, konversi ke valid status
                 if (strcasecmp($status, 'pending') == 0) {
                     $this->attributes['status'] = self::STATUS_PENDING;
+                }
+                elseif (strcasecmp($status, 'in-progress') == 0) {
+                    $this->attributes['status'] = self::STATUS_IN_PROGRESS;
+                }
+                elseif (strcasecmp($status, 'pending-verification') == 0) {
+                    $this->attributes['status'] = self::STATUS_PENDING_VERIFICATION;
                 }
                 elseif (strcasecmp($status, 'completed') == 0) {
                     $this->attributes['status'] = self::STATUS_COMPLETED;
@@ -172,7 +200,14 @@ class Inspection extends Model
     public function getStatusAttribute($value)
     {
         // Pastikan status selalu salah satu dari nilai yang valid
-        $validStatuses = [self::STATUS_PENDING, self::STATUS_COMPLETED, self::STATUS_VERIFIED, self::STATUS_REJECTED];
+        $validStatuses = [
+            self::STATUS_PENDING, 
+            self::STATUS_IN_PROGRESS,
+            self::STATUS_PENDING_VERIFICATION,
+            self::STATUS_COMPLETED, 
+            self::STATUS_VERIFIED, 
+            self::STATUS_REJECTED
+        ];
 
         if (is_null($value) || !in_array($value, $validStatuses)) {
             return self::STATUS_PENDING;
@@ -238,19 +273,35 @@ class Inspection extends Model
     }
 
     /**
-     * Check if inspection has been completed.
-     */
-    public function isCompleted()
-    {
-        return $this->status === self::STATUS_COMPLETED;
-    }
-
-    /**
      * Check if inspection is still pending.
      */
     public function isPending()
     {
         return $this->status === self::STATUS_PENDING;
+    }
+
+    /**
+     * Check if inspection is in progress.
+     */
+    public function isInProgress()
+    {
+        return $this->status === self::STATUS_IN_PROGRESS;
+    }
+
+    /**
+     * Check if inspection is pending verification.
+     */
+    public function isPendingVerification()
+    {
+        return $this->status === self::STATUS_PENDING_VERIFICATION;
+    }
+
+    /**
+     * Check if inspection has been completed.
+     */
+    public function isCompleted()
+    {
+        return $this->status === self::STATUS_COMPLETED;
     }
 
     /**

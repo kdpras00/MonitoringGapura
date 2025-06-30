@@ -4,6 +4,7 @@ namespace App\Models\Traits;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\Inspection;
 
 trait StatusSafety
 {
@@ -38,6 +39,9 @@ trait StatusSafety
             Log::info('Verify inspection result', ['result' => $result, 'inspection_id' => $this->id]);
 
             if ($result) {
+                // Force reset cache
+                DB::connection()->flushQueryLog();
+                
                 // Force refresh model dari database
                 $this->refresh();
 
@@ -61,8 +65,16 @@ trait StatusSafety
                     // Coba update langsung dengan query native
                     try {
                         DB::statement("UPDATE inspections SET status = 'verified' WHERE id = ?", [$this->id]);
-                        $this->refresh();
-
+                        
+                        // Reset cache lagi
+                        DB::connection()->flushQueryLog();
+                        
+                        // Fresh reload dari database - paksa reload
+                        $freshModel = Inspection::find($this->id);
+                        if ($freshModel) {
+                            $this->status = $freshModel->status;
+                        }
+                        
                         Log::info('Status after raw query', [
                             'inspection_id' => $this->id,
                             'status' => $this->status,
@@ -120,6 +132,9 @@ trait StatusSafety
             Log::info('Reject inspection result', ['result' => $result, 'inspection_id' => $this->id]);
 
             if ($result) {
+                // Force reset cache
+                DB::connection()->flushQueryLog();
+                
                 // Force refresh model dari database
                 $this->refresh();
 
@@ -143,8 +158,16 @@ trait StatusSafety
                     // Coba update langsung dengan query native
                     try {
                         DB::statement("UPDATE inspections SET status = 'rejected' WHERE id = ?", [$this->id]);
-                        $this->refresh();
-
+                        
+                        // Reset cache lagi
+                        DB::connection()->flushQueryLog();
+                        
+                        // Fresh reload dari database - paksa reload
+                        $freshModel = Inspection::find($this->id);
+                        if ($freshModel) {
+                            $this->status = $freshModel->status;
+                        }
+                        
                         Log::info('Status after raw reject query', [
                             'inspection_id' => $this->id,
                             'status' => $this->status,

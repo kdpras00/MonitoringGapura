@@ -140,12 +140,16 @@ class MaintenanceResource extends Resource
                 Forms\Components\Select::make('status')
                     ->label('Status')
                     ->options([
+                        'pending' => 'Reported / Pending Approval',
                         'planned' => 'Planned',
+                        'assigned' => 'Assigned',
                         'in-progress' => 'In Progress',
-                        'pending' => 'Pending Approval',
+                        'pending-verification' => 'Pending Verification',
+                        'verified' => 'Verified',
+                        'rejected' => 'Rejected',
                         'completed' => 'Completed',
                     ])
-                    ->default('planned')
+                    ->default('pending')
                     ->required(),
                 Forms\Components\TextInput::make('cost')
                     ->label('Biaya')
@@ -263,15 +267,23 @@ class MaintenanceResource extends Resource
                 Tables\Columns\BadgeColumn::make('status')
                     ->label('Status')
                     ->colors([
-                        'warning' => 'planned',
-                        'primary' => 'in-progress',
-                        'purple' => 'pending',
+                        'warning' => 'pending',
+                        'primary' => 'planned',
+                        'secondary' => 'assigned',
+                        'info' => 'in-progress',
+                        'purple' => 'pending-verification',
+                        'green' => 'verified',
+                        'danger' => 'rejected',
                         'success' => 'completed',
                     ])
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'planned' => 'Planned',
-                        'in-progress' => 'In Progress',
                         'pending' => 'Pending Approval',
+                        'planned' => 'Planned',
+                        'assigned' => 'Assigned',
+                        'in-progress' => 'In Progress',
+                        'pending-verification' => 'Pending Verification',
+                        'verified' => 'Verified',
+                        'rejected' => 'Rejected',
                         'completed' => 'Completed',
                         default => $state,
                     }),
@@ -279,9 +291,13 @@ class MaintenanceResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
                     ->options([
-                        'planned' => 'Planned',
-                        'in-progress' => 'In Progress',
                         'pending' => 'Pending Approval',
+                        'planned' => 'Planned',
+                        'assigned' => 'Assigned',
+                        'in-progress' => 'In Progress',
+                        'pending-verification' => 'Pending Verification',
+                        'verified' => 'Verified',
+                        'rejected' => 'Rejected',
                         'completed' => 'Completed',
                     ]),
                 Tables\Filters\SelectFilter::make('equipment_type')
