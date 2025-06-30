@@ -92,7 +92,7 @@ class VerificationResource extends Resource
         return $table
             ->modifyQueryUsing(function (Builder $query) {
                 // Hanya tampilkan inspection yang status completed
-                $query->where('status', 'completed');
+                $query->where('status', \App\Models\Inspection::STATUS_COMPLETED);
             })
             ->columns([
                 Tables\Columns\TextColumn::make('equipment.name')
@@ -124,24 +124,21 @@ class VerificationResource extends Resource
                             ->label('Catatan Verifikasi'),
                     ])
                     ->action(function (Inspection $record, array $data) {
-                        $record->status = 'verified';
-                        $record->verification_notes = $data['verification_notes'] ?? null;
-                        $record->verification_date = now();
-                        $record->verified_by = auth()->id();
-                        $record->save();
-                        
+                        // Gunakan method safeVerify dari trait StatusSafety
+                        $record->safeVerify($data['verification_notes'] ?? null, auth()->id());
+
                         // Update status maintenance menjadi completed (terverifikasi) jika ada
                         $maintenance = \App\Models\Maintenance::where('equipment_id', $record->equipment_id)
                             ->where('technician_id', $record->technician_id)
                             ->whereIn('status', ['in-progress', 'planned', 'pending'])
                             ->first();
-                            
+
                         if ($maintenance) {
                             $maintenance->status = 'completed'; // completed berarti sudah diverifikasi oleh supervisor
                             $maintenance->actual_date = now();
                             $maintenance->save();
                         }
-                        
+
                         Notification::make()
                             ->title('Inspection berhasil diverifikasi')
                             ->success()
@@ -158,12 +155,9 @@ class VerificationResource extends Resource
                             ->required(),
                     ])
                     ->action(function (Inspection $record, array $data) {
-                        $record->status = 'rejected';
-                        $record->verification_notes = $data['verification_notes'];
-                        $record->verification_date = now();
-                        $record->verified_by = auth()->id();
-                        $record->save();
-                        
+                        // Gunakan method safeReject dari trait StatusSafety
+                        $record->safeReject($data['verification_notes'], auth()->id());
+
                         Notification::make()
                             ->title('Inspection ditolak')
                             ->danger()
@@ -190,4 +184,4 @@ class VerificationResource extends Resource
             'view' => Pages\ViewVerification::route('/{record}'),
         ];
     }
-} 
+}

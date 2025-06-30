@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\EquipmentController;
-use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PredictiveMaintenanceController;
@@ -15,17 +14,29 @@ use Filament\Facades\Filament;
 use Filament\Pages\Dashboard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\UpdateInspectionController;
 
 
-// Route login admin dinonaktifkan karena sudah menggunakan unified login
+Route::post('/admin/login', function (Request $request) {
+    $credentials = $request->validate([
+        'email' => 'required|email',
+        'password' => 'required',
+    ]);
+
+    if (Auth::attempt($credentials)) {
+        $request->session()->regenerate();
+        return redirect()->intended('/admin'); // Redirect ke dashboard admin
+    }
+
+    return back()->withErrors([
+        'email' => 'Email atau password salah.',
+    ]);
+})->name('filament.auth.attempt');
 
 Route::get('/', function () {
-    if (Auth::check()) {
-        // Jika sudah login, redirect ke controller unified untuk menentukan halaman tujuan
-        return app(App\Http\Controllers\Auth\UnifiedLoginController::class)->redirectBasedOnRole();
-    }
-    // Jika belum login, arahkan ke halaman login unified
-    return redirect()->route('unified.login');
+    // return view('home');
+    return redirect('/admin');
 });
 
 // Public routes for QR Code access (no authentication required)
@@ -104,20 +115,10 @@ Route::middleware(['auth'])->group(function () {
 
     // Print QR Code
     Route::get('/equipment/{id}/print-qr', [EquipmentController::class, 'printQrCode'])->name('equipment.print-qr');
+
+    // Barcode
+    Route::get('/equipment/{equipment}/barcode', [EquipmentController::class, 'barcode'])->name('equipment.barcode');
 });
-
-// Route login terpadu (unified login)
-Route::get('/login', [App\Http\Controllers\Auth\UnifiedLoginController::class, 'showLoginForm'])
-    ->name('unified.login');
-Route::post('/login', [App\Http\Controllers\Auth\UnifiedLoginController::class, 'login']);
-Route::post('/logout', [App\Http\Controllers\Auth\UnifiedLoginController::class, 'logout'])
-    ->middleware('auth')
-    ->name('unified.logout');
-
-// Route untuk panel teknisi
-Route::get('/sync-technician', [App\Http\Controllers\TechnicianPanelController::class, 'syncTechnicianStatus'])
-    ->middleware(['auth'])
-    ->name('sync.technician');
 
 // Memasukkan route authentication dari Laravel Breeze/Fortify
 require __DIR__ . '/auth.php';
@@ -149,117 +150,11 @@ Route::post('/notifications/mark-all-as-read', [NotificationController::class, '
 
 
 
-// Hanya tampilkan Dashboard untuk non-teknisi dan non-supervisor
-if (auth()->check() && !in_array(auth()->user()->role, ['technician', 'supervisor'])) {
-    Filament::registerPages([
-        Dashboard::class,
-    ]);
-}
+Filament::registerPages([
+    Dashboard::class,
+]);
 
-// Maintenance Routes
-Route::prefix('maintenance')->name('maintenance.')->group(function () {
-    Route::get('/dashboard', [App\Http\Controllers\MaintenanceController::class, 'dashboard'])->name('dashboard');
-    Route::get('/detail/{id}', [App\Http\Controllers\MaintenanceController::class, 'detail'])->name('detail');
-    Route::post('/schedule/{id}', [App\Http\Controllers\MaintenanceController::class, 'schedule'])->name('schedule');
-    Route::post('/complete/{id}', [App\Http\Controllers\MaintenanceController::class, 'complete'])->name('complete');
-    
-    // Supervisor Routes
-    Route::get('/supervisor', [App\Http\Controllers\MaintenanceController::class, 'supervisor'])
-        ->name('supervisor')
-        ->middleware(['supervisor']);
-    Route::get('/approval/{id}', [App\Http\Controllers\MaintenanceController::class, 'approvalDetail'])
-        ->name('approval.detail')
-        ->middleware(['supervisor']);
-    Route::post('/approve/{id}', [App\Http\Controllers\MaintenanceController::class, 'approve'])
-        ->name('approve')
-        ->middleware(['supervisor']);
-    
-    // Export Routes
-    Route::get('/export', [App\Http\Controllers\MaintenanceController::class, 'export'])->name('export-reports');
-    Route::post('/generate-export', [App\Http\Controllers\MaintenanceController::class, 'generateExport'])->name('generate-export');
-    
-    // History Detail Route
-    Route::get('/history/{id}', [App\Http\Controllers\MaintenanceController::class, 'historyDetail'])->name('history.detail');
-    
-    // Refresh Data Route
-    Route::get('/refresh', [App\Http\Controllers\MaintenanceController::class, 'refreshData'])->name('refresh');
-});
-
-// Testing Route
-// Route::get('/test-equipments', function () {
-//     $equipment = \App\Models\Equipment::all();
-//     return response()->json($equipment);
-// });
-
-// Route::get('/test-maintenances', function () {
-//     $maintenances = \App\Models\Maintenance::all();
-//     return response()->json($maintenances);
-// });
-
-// Spare Part Barcode Routes
-Route::prefix('spare-parts')->name('spare-parts.')->group(function () {
-    // Route cetak barcode (memerlukan autentikasi)
-    Route::get('/barcode/{sparePart}', [App\Http\Controllers\SparePartController::class, 'barcode'])
-        ->name('barcode')
-        ->middleware(['auth']);
-    
-    // Route scan barcode (tidak memerlukan autentikasi)
-    Route::get('/scan', [App\Http\Controllers\SparePartController::class, 'scan'])
-        ->name('scan');
-    
-    // Route untuk barcode tidak ditemukan (tidak memerlukan autentikasi)
-    Route::get('/not-found', [App\Http\Controllers\SparePartController::class, 'notFound'])
-        ->name('not-found');
-});
-
-// Equipment Barcode Routes
-Route::prefix('equipment')->name('equipment.')->group(function () {
-    // Route cetak barcode (memerlukan autentikasi)
-    Route::get('/barcode/{equipment}', [App\Http\Controllers\EquipmentController::class, 'barcode'])
-        ->name('barcode')
-        ->middleware(['auth']);
-});
-
-// Public Equipment Routes (tidak memerlukan autentikasi)
-Route::get('/equipment/scan', [App\Http\Controllers\EquipmentController::class, 'scan'])
-    ->name('equipment.scan');
-
-Route::get('/equipment/not-found', [App\Http\Controllers\EquipmentController::class, 'notFound'])
-    ->name('equipment.not-found');
-    
-// Route view equipment langsung dengan ID
-Route::get('/equipment/view/{id}', [App\Http\Controllers\EquipmentController::class, 'viewById'])
-    ->name('equipment.view-by-id');
-    
-// Test route untuk debugging
-Route::get('/equipment/test-scan', function() {
-    $equipment = \App\Models\Equipment::first();
-    if ($equipment) {
-        return [
-            'status' => 'success',
-            'equipment' => $equipment->only(['id', 'name', 'serial_number', 'barcode', 'qr_code']),
-            'scan_url' => url('/equipment/scan?code=' . $equipment->barcode),
-            'not_found_url' => url('/equipment/not-found?code=NOTFOUND')
-        ];
-    }
-    return ['status' => 'error', 'message' => 'No equipment found'];
-});
-
-// Route untuk menampilkan semua equipment (debugging)
-Route::get('/equipment/list-all', function() {
-    $equipments = \App\Models\Equipment::all();
-    
-    return [
-        'count' => $equipments->count(),
-        'equipments' => $equipments->map(function($item) {
-            return [
-                'id' => $item->id,
-                'name' => $item->name,
-                'serial_number' => $item->serial_number,
-                'barcode' => $item->barcode,
-                'qr_code' => $item->qr_code,
-                'view_url' => url('/equipment/view/' . $item->id)
-            ];
-        })
-    ];
-});
+// Routes untuk verifikasi inspeksi dengan metode yang lebih aman
+Route::post('inspections/{id}/verify', [UpdateInspectionController::class, 'verify'])->name('inspections.verify');
+Route::post('inspections/{id}/reject', [UpdateInspectionController::class, 'reject'])->name('inspections.reject');
+Route::post('inspections/{id}/return-to-pending', [UpdateInspectionController::class, 'returnToPending'])->name('inspections.returnToPending');

@@ -10,19 +10,32 @@ use App\Models\SparePart;
 use App\Models\User;
 use App\Observers\MaintenanceObserver;
 use Filament\Notifications\Notification; // Pastikan ini dari Filament
+use Livewire\Livewire;
+use App\Filament\Widgets\MainDashboardStats;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        //
+    }
+
+    /**
+     * Bootstrap any application services.
+     */
     public function boot(): void
     {
         // Fix asset URL if using artisan serve or non-standard port
         if ($this->app->environment('local')) {
             $this->app['url']->forceRootUrl(config('app.url'));
         }
-        
+
         // Force HTTPS in production
         if ($this->app->environment('production')) {
-            \URL::forceScheme('https');
+            \Illuminate\Support\Facades\URL::forceScheme('https');
         }
 
         // Bagikan data maintenance ke semua view (lazy loading dengan closure)
@@ -47,5 +60,8 @@ class AppServiceProvider extends ServiceProvider
                     ->sendToDatabase(User::whereHas('roles', fn($q) => $q->where('name', 'admin'))->get());
             }
         });
+
+        // Mendaftarkan komponen Livewire untuk MainDashboardStats widget
+        Livewire::component('app.filament.widgets.main-dashboard-stats', MainDashboardStats::class);
     }
 }

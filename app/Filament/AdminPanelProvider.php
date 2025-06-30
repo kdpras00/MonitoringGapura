@@ -42,8 +42,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('Monitoring Gapura')
             ->authGuard('web')
             ->widgets([
-                // Widget MaintenanceChart dan EquipmentChart sejajar
-                Widgets\MaintenanceChart::class,
+                // Widget yang masih ada dan berfungsi
                 Widgets\EquipmentChart::class,
                 Widgets\MaintenanceNextService::class,
                 Widgets\NotificationsWidget::class,

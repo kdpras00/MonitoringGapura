@@ -26,33 +26,36 @@ class ViewVerification extends ViewRecord
                 ])
                 ->action(function (array $data) {
                     $record = $this->getRecord();
-                    $record->status = 'verified';
-                    $record->verification_notes = $data['verification_notes'] ?? null;
-                    $record->verification_date = now();
-                    $record->verified_by = auth()->id();
+                    // Gunakan konstanta status dari model
+                    $record->fill([
+                        'status' => \App\Models\Inspection::STATUS_VERIFIED,
+                        'verification_notes' => $data['verification_notes'] ?? null,
+                        'verification_date' => now(),
+                        'verified_by' => auth()->id()
+                    ]);
                     $record->save();
-                    
+
                     // Update status maintenance jika ada
                     $maintenance = \App\Models\Maintenance::where('equipment_id', $record->equipment_id)
                         ->where('technician_id', $record->technician_id)
                         ->whereIn('status', ['in-progress', 'planned'])
                         ->first();
-                        
+
                     if ($maintenance) {
                         $maintenance->status = 'completed';
                         $maintenance->actual_date = now();
                         $maintenance->save();
                     }
-                    
+
                     Notification::make()
                         ->title('Inspection berhasil diverifikasi')
                         ->success()
                         ->send();
-                        
+
                     $this->redirect(VerificationResource::getUrl());
                 })
                 ->visible(fn () => $this->getRecord()->status === 'completed'),
-                
+
             Action::make('reject')
                 ->label('Tolak')
                 ->icon('heroicon-o-x-circle')
@@ -64,20 +67,23 @@ class ViewVerification extends ViewRecord
                 ])
                 ->action(function (array $data) {
                     $record = $this->getRecord();
-                    $record->status = 'rejected';
-                    $record->verification_notes = $data['verification_notes'];
-                    $record->verification_date = now();
-                    $record->verified_by = auth()->id();
+                    // Gunakan konstanta status dari model
+                    $record->fill([
+                        'status' => \App\Models\Inspection::STATUS_REJECTED,
+                        'verification_notes' => $data['verification_notes'],
+                        'verification_date' => now(),
+                        'verified_by' => auth()->id()
+                    ]);
                     $record->save();
-                    
+
                     Notification::make()
                         ->title('Inspection ditolak')
                         ->danger()
                         ->send();
-                        
+
                     $this->redirect(VerificationResource::getUrl());
                 })
                 ->visible(fn () => $this->getRecord()->status === 'completed'),
         ];
     }
-} 
+}

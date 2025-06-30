@@ -88,7 +88,7 @@ class InspectionResource extends Resource
                     })
                     ->required(),
                 ]),
-                
+
                 Forms\Components\Section::make('Detail Inspection')
                 ->schema([
                 Forms\Components\Textarea::make('notes')
@@ -134,7 +134,7 @@ class InspectionResource extends Resource
                     ->disabled($isSupervisor)
                     ->columns(2),
                 ]),
-                
+
                 Forms\Components\Section::make('Lokasi')
                 ->schema([
                 Forms\Components\TextInput::make('location')
@@ -152,7 +152,7 @@ class InspectionResource extends Resource
                     ->disabled($isSupervisor)
                     ->default(now()),
                 ]),
-                
+
                 Forms\Components\Section::make('Verifikasi')
                 ->schema([
                     Forms\Components\Textarea::make('verification_notes')
@@ -161,7 +161,7 @@ class InspectionResource extends Resource
                         ->disabled(!$isSupervisor)
                         ->rows(3),
                 ]),
-                
+
                 Forms\Components\Section::make('Maintenance Terkait')
                 ->visible(function ($record) {
                     return $record && $record->getLatestMaintenanceAttribute();
@@ -172,13 +172,13 @@ class InspectionResource extends Resource
                         ->content(function ($record) {
                             $maintenance = $record->getLatestMaintenanceAttribute();
                             if (!$maintenance) return 'Tidak ada maintenance terkait';
-                            
+
                             // Pastikan semua properti ada sebelum diakses
                             $id = $maintenance->id ?? 'N/A';
                             $jadwal = isset($maintenance->schedule_date) ? $maintenance->schedule_date->format('d-m-Y H:i') : 'N/A';
                             $status = $maintenance->status ?? 'N/A';
                             $prioritas = $maintenance->priority ?? 'N/A';
-                            
+
                             return "ID: {$id}\nJadwal: {$jadwal}\nStatus: {$status}\nPrioritas: {$prioritas}";
                         }),
                     Forms\Components\ViewField::make('maintenance_link')
@@ -200,12 +200,12 @@ class InspectionResource extends Resource
                 if ($isTechnician) {
                     $query->where('technician_id', $user->id);
                 }
-                
+
                 // Supervisor hanya melihat inspection yang status completed
                 if ($isSupervisor) {
                     $query->where('status', 'completed');
                 }
-                
+
                 // Admin hanya melihat data yang sudah ditugaskan ke teknisi
                 if ($user->role === 'admin') {
                     $query->whereNotNull('technician_id');
@@ -263,14 +263,14 @@ class InspectionResource extends Resource
                     ->action(function (Inspection $record, array $data) {
                         $record->technician_id = $data['technician_id'];
                         $record->save();
-                        
+
                         // Update role user menjadi teknisi jika belum
                         $technician = User::find($data['technician_id']);
                         if ($technician && $technician->role !== 'technician') {
                             $technician->role = 'technician';
                             $technician->save();
                         }
-                        
+
                         Notification::make()
                             ->title('Teknisi berhasil ditugaskan')
                             ->success()
@@ -294,24 +294,21 @@ class InspectionResource extends Resource
                             ->label('Catatan Verifikasi'),
                     ])
                     ->action(function (Inspection $record, array $data) {
-                        $record->status = 'verified';
-                        $record->verification_notes = $data['verification_notes'] ?? null;
-                        $record->verification_date = now();
-                        $record->verified_by = auth()->id();
-                        $record->save();
-                        
+                        // Gunakan method safeVerify dari trait StatusSafety
+                        $record->safeVerify($data['verification_notes'] ?? null, auth()->id());
+
                         // Update status maintenance menjadi verified (terverifikasi) jika ada
                         $maintenance = Maintenance::where('equipment_id', $record->equipment_id)
                             ->where('technician_id', $record->technician_id)
                             ->whereIn('status', ['in-progress', 'planned', 'pending'])
                             ->first();
-                            
+
                         if ($maintenance) {
                             $maintenance->status = 'completed'; // completed berarti sudah diverifikasi oleh supervisor
                             $maintenance->actual_date = now();
                             $maintenance->save();
                         }
-                        
+
                         Notification::make()
                             ->title('Inspection berhasil diverifikasi')
                             ->success()
@@ -328,12 +325,15 @@ class InspectionResource extends Resource
                             ->required(),
                     ])
                     ->action(function (Inspection $record, array $data) {
-                        $record->status = 'rejected';
-                        $record->verification_notes = $data['verification_notes'];
-                        $record->verification_date = now();
-                        $record->verified_by = auth()->id();
+                        // Gunakan konstanta status dari model
+                        $record->fill([
+                            'status' => \App\Models\Inspection::STATUS_REJECTED,
+                            'verification_notes' => $data['verification_notes'],
+                            'verification_date' => now(),
+                            'verified_by' => auth()->id()
+                        ]);
                         $record->save();
-                        
+
                         Notification::make()
                             ->title('Inspection ditolak')
                             ->danger()
@@ -349,10 +349,13 @@ class InspectionResource extends Resource
                     ->modalDescription('Apakah Anda yakin ingin mengembalikan status inspeksi ini ke "Belum Selesai"? Tindakan ini akan memungkinkan teknisi untuk mengedit dan mengupload ulang foto.')
                     ->modalSubmitActionLabel('Ya, Kembalikan Status')
                     ->action(function (Inspection $record) {
-                        $record->status = 'pending';
-                        $record->completion_date = null;
+                        // Gunakan konstanta status dari model
+                        $record->fill([
+                            'status' => \App\Models\Inspection::STATUS_PENDING,
+                            'completion_date' => null
+                        ]);
                         $record->save();
-                        
+
                         Notification::make()
                             ->title('Status inspeksi dikembalikan')
                             ->body('Status inspeksi telah dikembalikan ke "Belum Selesai".')
@@ -387,4 +390,4 @@ class InspectionResource extends Resource
             'upload-photos' => Pages\UploadInspectionPhotos::route('/{record}/upload-photos'),
         ];
     }
-} 
+}

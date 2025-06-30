@@ -25,8 +25,10 @@ class ApprovalResource extends Resource
 
     public static function canViewAny(): bool
     {
+        // Menu approval maintenance disembunyikan dari supervisor
+        // Hanya admin yang dapat mengakses fitur ini
         $user = auth()->user();
-        return $user && $user->role === 'supervisor';
+        return $user && $user->role === 'viewer';
     }
 
     public static function canCreate(): bool 
@@ -37,7 +39,7 @@ class ApprovalResource extends Resource
     public static function canEdit(Model $record): bool
     {
         $user = auth()->user();
-        return $user && in_array($user->role, ['admin', 'supervisor']);
+        return $user && $user->role === 'admin';
     }
     
     public static function canDelete(Model $record): bool

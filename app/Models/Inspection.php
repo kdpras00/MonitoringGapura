@@ -9,10 +9,19 @@ use App\Models\Maintenance;
 use App\Models\Equipment;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Traits\StatusSafety;
 
 class Inspection extends Model
 {
-    use HasFactory;
+    use HasFactory, StatusSafety;
+
+    /**
+     * Status constants
+     */
+    const STATUS_PENDING = 'pending';
+    const STATUS_COMPLETED = 'completed';
+    const STATUS_VERIFIED = 'verified';
+    const STATUS_REJECTED = 'rejected';
 
     /**
      * The attributes that are mass assignable.
@@ -54,6 +63,135 @@ class Inspection extends Model
     ];
 
     /**
+     * Boot method untuk model
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Observer untuk status changes
+        static::updating(function ($inspection) {
+            if (isset($inspection->attributes['status']) &&
+                isset($inspection->original['status']) &&
+                $inspection->attributes['status'] != $inspection->original['status']) {
+
+                \Log::info('Inspection status changing', [
+                    'id' => $inspection->id,
+                    'from' => $inspection->original['status'],
+                    'to' => $inspection->attributes['status']
+                ]);
+            }
+        });
+
+        static::updated(function ($inspection) {
+            if ($inspection->isDirty('status')) {
+                \Log::info('Inspection status changed', [
+                    'id' => $inspection->id,
+                    'status' => $inspection->status,
+                    'dirty' => $inspection->isDirty(),
+                    'changes' => $inspection->getChanges()
+                ]);
+            }
+        });
+    }
+
+    /**
+     * Override setAttribute untuk status
+     */
+    public function setAttribute($key, $value)
+    {
+        // Khusus untuk kolom status
+        if ($key === 'status') {
+            // Pastikan value sama persis dengan salah satu nilai enum yang valid
+            $validValues = [self::STATUS_PENDING, self::STATUS_COMPLETED, self::STATUS_VERIFIED, self::STATUS_REJECTED];
+
+            if (!in_array($value, $validValues)) {
+                // Convert unquoted/invalid status to valid status
+                if (strtolower($value) == 'pending' || $value === self::STATUS_PENDING) {
+                    $value = self::STATUS_PENDING;
+                }
+                elseif (strtolower($value) == 'completed' || $value === self::STATUS_COMPLETED) {
+                    $value = self::STATUS_COMPLETED;
+                }
+                elseif (strtolower($value) == 'verified' || $value === self::STATUS_VERIFIED) {
+                    $value = self::STATUS_VERIFIED;
+                }
+                elseif (strtolower($value) == 'rejected' || $value === self::STATUS_REJECTED) {
+                    $value = self::STATUS_REJECTED;
+                }
+                else {
+                    // Default value if not valid
+                    $value = self::STATUS_PENDING;
+                }
+            }
+        }
+
+        return parent::setAttribute($key, $value);
+    }
+
+    /**
+     * Override save method to make sure status is properly set
+     */
+    public function save(array $options = [])
+    {
+        // Sebelum save, pastikan status adalah nilai yang valid
+        if (isset($this->attributes['status'])) {
+            $status = $this->attributes['status'];
+            $validValues = [self::STATUS_PENDING, self::STATUS_COMPLETED, self::STATUS_VERIFIED, self::STATUS_REJECTED];
+
+            if (!in_array($status, $validValues)) {
+                // Jika tidak valid, konversi ke valid status
+                if (strcasecmp($status, 'pending') == 0) {
+                    $this->attributes['status'] = self::STATUS_PENDING;
+                }
+                elseif (strcasecmp($status, 'completed') == 0) {
+                    $this->attributes['status'] = self::STATUS_COMPLETED;
+                }
+                elseif (strcasecmp($status, 'verified') == 0) {
+                    $this->attributes['status'] = self::STATUS_VERIFIED;
+                }
+                elseif (strcasecmp($status, 'rejected') == 0) {
+                    $this->attributes['status'] = self::STATUS_REJECTED;
+                }
+                else {
+                    // Default value if not valid
+                    $this->attributes['status'] = self::STATUS_PENDING;
+                }
+            }
+        }
+
+        return parent::save($options);
+    }
+
+    /**
+     * Override the attributes getter for status
+     *
+     * @param  string|null  $value
+     * @return string
+     */
+    public function getStatusAttribute($value)
+    {
+        // Pastikan status selalu salah satu dari nilai yang valid
+        $validStatuses = [self::STATUS_PENDING, self::STATUS_COMPLETED, self::STATUS_VERIFIED, self::STATUS_REJECTED];
+
+        if (is_null($value) || !in_array($value, $validStatuses)) {
+            return self::STATUS_PENDING;
+        }
+
+        return $value;
+    }
+
+    /**
+     * Debug method untuk menampilkan status
+     *
+     * @return string
+     */
+    public function debugStatus()
+    {
+        return "Current status: '{$this->status}', Database type: " . gettype($this->status) . ", Original: " . json_encode($this->getOriginal('status'));
+    }
+
+    /**
      * Get the equipment that this inspection belongs to.
      */
     public function equipment()
@@ -87,7 +225,7 @@ class Inspection extends Model
             ->latest()
             ->get();
     }
-    
+
     /**
      * Get the most recent related maintenance task.
      */
@@ -104,7 +242,7 @@ class Inspection extends Model
      */
     public function isCompleted()
     {
-        return $this->status === 'completed';
+        return $this->status === self::STATUS_COMPLETED;
     }
 
     /**
@@ -112,25 +250,25 @@ class Inspection extends Model
      */
     public function isPending()
     {
-        return $this->status === 'pending';
+        return $this->status === self::STATUS_PENDING;
     }
-    
+
     /**
      * Check if inspection has been verified.
      */
     public function isVerified()
     {
-        return $this->status === 'verified';
+        return $this->status === self::STATUS_VERIFIED;
     }
-    
+
     /**
      * Check if inspection has been rejected.
      */
     public function isRejected()
     {
-        return $this->status === 'rejected';
+        return $this->status === self::STATUS_REJECTED;
     }
-    
+
     /**
      * Get URL for before image.
      */
@@ -139,10 +277,10 @@ class Inspection extends Model
         if (!$this->before_image) {
             return null;
         }
-        
+
         return Storage::disk('public')->url($this->before_image);
     }
-    
+
     /**
      * Get URL for after image.
      */
@@ -151,7 +289,51 @@ class Inspection extends Model
         if (!$this->after_image) {
             return null;
         }
-        
+
         return Storage::disk('public')->url($this->after_image);
     }
-} 
+
+    /**
+     * Method aman untuk memverifikasi inspeksi
+     *
+     * @param string $notes
+     * @param int $userId
+     * @return bool
+     */
+    public function verify($notes, $userId)
+    {
+        $this->status = self::STATUS_VERIFIED;
+        $this->verification_notes = $notes;
+        $this->verification_date = now();
+        $this->verified_by = $userId;
+        return $this->save();
+    }
+
+    /**
+     * Method aman untuk menolak inspeksi
+     *
+     * @param string $notes
+     * @param int $userId
+     * @return bool
+     */
+    public function reject($notes, $userId)
+    {
+        $this->status = self::STATUS_REJECTED;
+        $this->verification_notes = $notes;
+        $this->verification_date = now();
+        $this->verified_by = $userId;
+        return $this->save();
+    }
+
+    /**
+     * Method aman untuk mengembalikan ke pending
+     *
+     * @return bool
+     */
+    public function returnToPending()
+    {
+        $this->status = self::STATUS_PENDING;
+        $this->completion_date = null;
+        return $this->save();
+    }
+}

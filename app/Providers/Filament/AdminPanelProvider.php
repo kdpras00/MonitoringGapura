@@ -17,18 +17,7 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use App\Filament\Widgets\MaintenanceCalendarWidget;
-use App\Filament\Widgets\MaintenanceOverviewWidget;
-use App\Filament\Widgets\MaintenanceAnalyticsWidget;
-use App\Filament\Widgets\PredictiveMaintenanceWidget;
-use App\Filament\Widgets\PredictiveMaintenanceOverview;
-use App\Filament\Widgets\EquipmentStatusWidget;
-use App\Filament\Widgets\StatsOverview;
-use App\Filament\Widgets\LatestMaintenances;
-use App\Filament\Widgets\SupervisorStatsOverview;
 use App\Filament\Pages\AdminDashboard;
-use App\Filament\Widgets\DashboardStatsWidget;
-use App\Filament\Widgets\LatestMaintenancesWidget;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -50,11 +39,8 @@ class AdminPanelProvider extends PanelProvider
                 // Dashboard kustom
                 AdminDashboard::class,
             ])
-            ->widgets([
-                // Hanya daftarkan widget yang diminta
-                DashboardStatsWidget::class,
-                LatestMaintenancesWidget::class,
-            ])
+            // Kosongkan pendaftaran widget di panel provider
+            ->widgets([])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
@@ -71,7 +57,7 @@ class AdminPanelProvider extends PanelProvider
             ]);
             // ->viteTheme('resources/css/filament/admin/theme.css')
             // ->favicon('images/gapura-favicon.png');
-            
+
 
         return $panel;
     }

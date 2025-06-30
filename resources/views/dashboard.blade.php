@@ -1,13 +1,8 @@
 @extends('layouts.app')
 
 @section('content')
-    @php
-        $chart = new \App\Charts\MaintenanceChart();
-        $chartData = $chart->getData();
-    @endphp
-
     <div>
-        <h1 class="text-2xl font-bold mb-4">Maintenance per Bulan</h1>
-        @include('charts.maintenance', ['chartData' => $chartData])
+        <h1 class="text-2xl font-bold mb-4">Dashboard</h1>
+        <p>Selamat datang di Sistem Monitoring Maintenance Gapura Angkasa</p>
     </div>
 @endsection

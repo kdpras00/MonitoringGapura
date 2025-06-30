@@ -4,8 +4,6 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Filament\Facades\Filament;
-use App\Filament\Widgets\DashboardStatsWidget;
-use App\Filament\Widgets\LatestMaintenancesWidget;
 use Illuminate\Support\Facades\Route;
 use App\Filament\Pages\AdminDashboard;
 
@@ -34,14 +32,7 @@ class FilamentServiceProvider extends ServiceProvider
                     ->name('filament.admin.pages.admin.dashboard');
             }
 
-            // Hapus semua widget yang terdaftar
-            Filament::getPanel('admin')->widgets([]);
-            
-            // Hanya daftarkan widget yang diinginkan
-            Filament::registerWidgets([
-                DashboardStatsWidget::class,
-                LatestMaintenancesWidget::class,
-            ]);
+            // Biarkan widget terdaftar secara otomatis
         });
     }
-} 
+}

@@ -74,7 +74,7 @@ class NavigationServiceProvider extends ServiceProvider
                 ->activeIcon('heroicon-s-wrench')
                 ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.resources.maintenances.*'))
                 ->url(route('filament.admin.resources.maintenances.index')),
-                
+
             // Reports
             NavigationItem::make('View Reports')
                 ->icon('heroicon-o-document-chart-bar')
@@ -143,15 +143,8 @@ class NavigationServiceProvider extends ServiceProvider
                 ->badgeColor('success')
                 ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.resources.verifications.*'))
                 ->url(route('filament.admin.resources.verifications.index')),
-                
-            // Tambahkan Approval Maintenance
-            NavigationItem::make('Approval Maintenance')
-                ->icon('heroicon-o-check-badge')
-                ->activeIcon('heroicon-s-check-badge')
-                ->badge(fn() => \App\Models\Maintenance::where('approval_status', 'pending')->count() ?: null)
-                ->badgeColor('warning')
-                ->isActiveWhen(fn(): bool => request()->routeIs('filament.admin.resources.approvals.*'))
-                ->url(route('filament.admin.resources.approvals.index')),
+
+            // Menu Approval Maintenance dihapus karena sudah ada Verification Inspection
         ]);
     }
 }

@@ -72,14 +72,6 @@
         <!-- Page Content -->
         <main>
             @yield('content')
-
-            <!-- Tambahkan Chart di sini -->
-            @php
-                $chart = new \App\Charts\MaintenanceChart();
-                $chartData = $chart->getData();
-            @endphp
-
-            @include('charts.maintenance', ['chartData' => $chartData])
         </main>
     </div>
 
