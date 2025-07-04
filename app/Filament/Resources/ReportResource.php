@@ -11,6 +11,10 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Filament\Infolists\Infolist;
+use Filament\Infolists\Components\Section;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ImageEntry;
 
 class ReportResource extends Resource
 {
@@ -125,5 +129,89 @@ class ReportResource extends Resource
             'index' => \App\Filament\Resources\ReportResource\Pages\ListReports::route('/'),
             'view' => \App\Filament\Resources\ReportResource\Pages\ViewReport::route('/{record}'),
         ];
+    }
+
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                Section::make('Informasi Maintenance')
+                    ->schema([
+                        TextEntry::make('equipment.name')
+                            ->label('Equipment'),
+                        TextEntry::make('schedule_date')
+                            ->label('Jadwal')
+                            ->dateTime(),
+                        TextEntry::make('actual_date')
+                            ->label('Tanggal Aktual')
+                            ->dateTime(),
+                        TextEntry::make('technician.name')
+                            ->label('Teknisi'),
+                        TextEntry::make('maintenance_type')
+                            ->label('Jenis Maintenance'),
+                        TextEntry::make('status')
+                            ->label('Status')
+                            ->badge()
+                            ->color(function ($state) {
+                                return match ($state) {
+                                    'pending' => 'warning',
+                                    'planned' => 'warning',
+                                    'assigned' => 'warning',
+                                    'in-progress' => 'primary',
+                                    'pending-verification' => 'primary',
+                                    'verified' => 'success',
+                                    'rejected' => 'danger',
+                                    default => 'gray',
+                                };
+                            }),
+                        TextEntry::make('cost')
+                            ->label('Biaya')
+                            ->money('IDR'),
+                        TextEntry::make('duration')
+                            ->label('Durasi (menit)'),
+                    ])->columns(2),
+                
+                Section::make('Catatan & Checklist')
+                    ->schema([
+                        TextEntry::make('notes')
+                            ->label('Catatan')
+                            ->columnSpanFull(),
+                        TextEntry::make('checklist')
+                            ->label('Checklist')
+                            ->listWithLineBreaks()
+                            ->bulleted(),
+                    ]),
+                
+                Section::make('Foto Maintenance')
+                    ->schema([
+                        ImageEntry::make('before_image')
+                            ->label('Foto Sebelum')
+                            ->disk('public')
+                            ->height(300),
+                        ImageEntry::make('after_image')
+                            ->label('Foto Setelah')
+                            ->disk('public')
+                            ->height(300),
+                    ])->columns(2),
+                
+                Section::make('Status Persetujuan')
+                    ->schema([
+                        TextEntry::make('approval_status')
+                            ->label('Status')
+                            ->badge()
+                            ->color(function ($state) {
+                                return match ($state) {
+                                    'approved' => 'success',
+                                    'rejected' => 'danger',
+                                    default => 'gray',
+                                };
+                            }),
+                        TextEntry::make('approval_notes')
+                            ->label('Catatan Persetujuan'),
+                        TextEntry::make('approval_date')
+                            ->label('Tanggal Persetujuan')
+                            ->dateTime(),
+                    ]),
+            ]);
     }
 }

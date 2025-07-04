@@ -108,10 +108,18 @@ class ViewVerification extends ViewRecord
                             DB::statement($sql, ['verified', $data['verification_notes'] ?? null, $userId, $record->id]);
                             
                             // Update status maintenance menjadi completed (terverifikasi) jika ada
-                            $maintenance = \App\Models\Maintenance::where('equipment_id', $record->equipment_id)
-                                ->where('technician_id', $record->technician_id)
-                                ->whereIn('status', ['in-progress', 'planned', 'pending'])
-                                ->first();
+                            $maintenance = null;
+                            if ($record->maintenance_id) {
+                                $maintenance = \App\Models\Maintenance::find($record->maintenance_id);
+                            }
+                            
+                            if (!$maintenance) {
+                                $maintenance = \App\Models\Maintenance::where('equipment_id', $record->equipment_id)
+                                    ->where('technician_id', $record->technician_id)
+                                    ->whereIn('status', ['pending', 'planned', 'assigned', 'in-progress', 'pending-verification'])
+                                    ->latest()
+                                    ->first();
+                            }
 
                             if ($maintenance) {
                                 // Update status dan data maintenance
@@ -162,7 +170,7 @@ class ViewVerification extends ViewRecord
                             ->send();
                     }
                 })
-                ->visible(fn () => in_array($this->getRecord()->status, ['pending-verification', 'completed'])),
+                ->visible(fn () => $this->getRecord()->status === 'pending-verification'),
 
             Action::make('reject')
                 ->label('Tolak')
@@ -202,10 +210,18 @@ class ViewVerification extends ViewRecord
                             DB::statement($sql, ['rejected', $data['verification_notes'], $userId, $record->id]);
                             
                             // Update status maintenance menjadi rejected jika ada
-                            $maintenance = \App\Models\Maintenance::where('equipment_id', $record->equipment_id)
-                                ->where('technician_id', $record->technician_id)
-                                ->whereIn('status', ['in-progress', 'planned', 'pending'])
-                                ->first();
+                            $maintenance = null;
+                            if ($record->maintenance_id) {
+                                $maintenance = \App\Models\Maintenance::find($record->maintenance_id);
+                            }
+                            
+                            if (!$maintenance) {
+                                $maintenance = \App\Models\Maintenance::where('equipment_id', $record->equipment_id)
+                                    ->where('technician_id', $record->technician_id)
+                                    ->whereIn('status', ['pending', 'planned', 'assigned', 'in-progress', 'pending-verification'])
+                                    ->latest()
+                                    ->first();
+                            }
 
                             if ($maintenance) {
                                 // Update status dan data maintenance
@@ -255,7 +271,7 @@ class ViewVerification extends ViewRecord
                             ->send();
                     }
                 })
-                ->visible(fn () => in_array($this->getRecord()->status, ['pending-verification', 'completed'])),
+                ->visible(fn () => $this->getRecord()->status === 'pending-verification'),
         ];
     }
 

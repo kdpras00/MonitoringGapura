@@ -22,7 +22,6 @@ class Maintenance extends Model
     const STATUS_PENDING_VERIFICATION = 'pending-verification'; // Menunggu verifikasi (foto sesudah)
     const STATUS_VERIFIED = 'verified';   // Sudah diverifikasi oleh supervisor
     const STATUS_REJECTED = 'rejected';   // Ditolak oleh supervisor
-    const STATUS_COMPLETED = 'completed'; // Selesai sepenuhnya (opsional)
 
     /**
      * The table associated with the model.
@@ -87,6 +86,7 @@ class Maintenance extends Model
         'schedule_date' => 'datetime',
         'actual_date' => 'datetime',
         'next_service_date' => 'datetime',
+        'checklist' => 'array',
     ];
 
     /**
@@ -104,6 +104,11 @@ class Maintenance extends Model
         return $this->belongsTo(User::class, 'technician_id');
     }
 
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
     public function comments()
     {
         return $this->hasMany(MaintenanceComment::class);
@@ -114,10 +119,6 @@ class Maintenance extends Model
         parent::boot();
 
         static::creating(function ($maintenance) {
-            if (is_null($maintenance->technician_id)) {
-                $maintenance->technician_id = 1; // 👈 Default teknisi ID 1
-            }
-            
             // Sinkronkan jenis alat dan prioritas dari equipment
             if (!empty($maintenance->equipment_id)) {
                 $equipment = Equipment::find($maintenance->equipment_id);
@@ -126,17 +127,22 @@ class Maintenance extends Model
                     $maintenance->priority = $equipment->priority;
                 }
             }
-        });
-
-        static::creating(function ($maintenance) {
-            if ($maintenance->actual_date) {
-                $maintenance->next_service_date = Carbon::parse($maintenance->actual_date)->addMonth();
+            
+            // Set jadwal service berikutnya otomatis 3 bulan setelah jadwal maintenance
+            if ($maintenance->schedule_date && empty($maintenance->next_service_date)) {
+                $maintenance->next_service_date = Carbon::parse($maintenance->schedule_date)->addMonths(3);
             }
         });
 
         static::updating(function ($maintenance) {
+            // Update jadwal service berikutnya jika jadwal maintenance berubah
+            if ($maintenance->isDirty('schedule_date')) {
+                $maintenance->next_service_date = Carbon::parse($maintenance->schedule_date)->addMonths(3);
+            }
+            
+            // Jika tanggal aktual diisi, update jadwal service berikutnya
             if ($maintenance->actual_date) {
-                $maintenance->next_service_date = Carbon::parse($maintenance->actual_date)->addMonth();
+                $maintenance->next_service_date = Carbon::parse($maintenance->actual_date)->addMonths(3);
             }
             
             // Sinkronkan jenis alat dan prioritas dari equipment saat update
@@ -149,6 +155,17 @@ class Maintenance extends Model
                 }
             }
         });
+        
+        // Log saat maintenance dihapus
+        static::deleting(function ($maintenance) {
+            \Log::info('Maintenance being deleted', [
+                'id' => $maintenance->id,
+                'equipment_id' => $maintenance->equipment_id,
+                'technician_id' => $maintenance->technician_id
+            ]);
+            
+            // Inspeksi akan otomatis dihapus karena kita menggunakan cascade di foreign key
+        });
     }
 
     /**
@@ -157,14 +174,6 @@ class Maintenance extends Model
     public function history()
     {
         return $this->hasMany(MaintenanceHistory::class);
-    }
-
-    /**
-     * Check if maintenance has been completed.
-     */
-    public function isCompleted()
-    {
-        return $this->status === self::STATUS_COMPLETED;
     }
 
     /**
@@ -262,16 +271,15 @@ class Maintenance extends Model
     }
 
     /**
-     * Get all inspection records for this maintenance.
+     * Get inspections related to this maintenance.
      */
     public function inspections()
     {
-        return $this->hasMany(Inspection::class, 'technician_id', 'technician_id')
-            ->where('equipment_id', $this->equipment_id);
+        return $this->hasMany(Inspection::class);
     }
-    
+
     /**
-     * Get the latest inspection for this maintenance.
+     * Get the most recent inspection for this maintenance.
      */
     public function getLatestInspectionAttribute()
     {
@@ -279,10 +287,10 @@ class Maintenance extends Model
     }
 
     /**
-     * Check if maintenance has an associated inspection.
+     * Check if this maintenance has inspections.
      */
     public function hasInspection()
     {
-        return $this->inspections()->exists();
+        return $this->inspections()->count() > 0;
     }
 }

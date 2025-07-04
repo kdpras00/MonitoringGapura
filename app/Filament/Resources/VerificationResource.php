@@ -99,8 +99,8 @@ class VerificationResource extends Resource
     {
         return $table
             ->modifyQueryUsing(function (Builder $query) {
-                // Hanya tampilkan inspection yang status pending-verification atau completed (menunggu verifikasi supervisor)
-                $query->whereIn("status", ['pending-verification', 'completed']);
+                // Hanya tampilkan inspection yang status pending-verification (menunggu verifikasi supervisor)
+                $query->where("status", 'pending-verification');
                 
                 // Eager load relasi equipment dan technician
                 $query->with(['equipment', 'technician']);
@@ -108,7 +108,8 @@ class VerificationResource extends Resource
                 // Debug query
                 \Illuminate\Support\Facades\Log::info('VerificationResource query', [
                     'sql' => $query->toSql(),
-                    'bindings' => $query->getBindings()
+                    'bindings' => $query->getBindings(),
+                    'count' => $query->count()
                 ]);
             })
             ->poll('2s') // Auto refresh setiap 2 detik untuk responsivitas yang lebih baik
@@ -189,21 +190,31 @@ class VerificationResource extends Resource
                                     'status' => \Illuminate\Support\Facades\DB::table('inspections')->where('id', $record->id)->value('status')
                                 ]);
 
-                                // Update status maintenance menjadi completed (terverifikasi) jika ada
-                                $maintenance = \App\Models\Maintenance::where('equipment_id', $record->equipment_id)
-                                    ->where('technician_id', $record->technician_id)
-                                    ->whereIn('status', ['in-progress', 'planned', 'pending'])
-                                    ->first();
+                        // Update status maintenance menjadi completed (terverifikasi) jika ada
+                        $maintenance = null;
+                        
+                        // Coba cari berdasarkan maintenance_id jika ada
+                        if ($record->maintenance_id) {
+                            $maintenance = \App\Models\Maintenance::find($record->maintenance_id);
+                        }
+                        
+                        // Jika tidak ditemukan, coba cari berdasarkan equipment_id dan technician_id
+                        if (!$maintenance) {
+                        $maintenance = \App\Models\Maintenance::where('equipment_id', $record->equipment_id)
+                            ->where('technician_id', $record->technician_id)
+                                ->whereIn('status', ['in-progress', 'planned', 'pending', 'pending-verification'])
+                            ->first();
+                        }
 
-                                if ($maintenance) {
+                        if ($maintenance) {
                                     // Update status maintenance
                                     $maintenance->status = Maintenance::STATUS_VERIFIED;  // verified berarti sudah terverifikasi
                                     $maintenance->approval_status = 'approved';
                                     $maintenance->approval_notes = $data['verification_notes'] ?? 'Terverifikasi oleh supervisor';
                                     $maintenance->approved_by = $userId;
                                     $maintenance->approval_date = now();
-                                    $maintenance->actual_date = now();
-                                    $maintenance->save();
+                            $maintenance->actual_date = now();
+                            $maintenance->save();
                                     
                                     // Log perubahan maintenance
                                     \Illuminate\Support\Facades\Log::info('Maintenance terverifikasi', [
@@ -224,10 +235,10 @@ class VerificationResource extends Resource
                             \Illuminate\Support\Facades\Cache::flush();
                             
                             // Kirim notifikasi dan redirect
-                            Notification::make()
-                                ->title('Inspection berhasil diverifikasi')
-                                ->success()
-                                ->send();
+                        Notification::make()
+                            ->title('Inspection berhasil diverifikasi')
+                            ->success()
+                            ->send();
                                 
                             // Redirect dengan JavaScript Window Location Reload untuk force refresh
                             return response()->json([
@@ -249,7 +260,7 @@ class VerificationResource extends Resource
                                 ->send();
                         }
                     })
-                    ->visible(fn (Inspection $record) => in_array($record->status, ['pending-verification', 'completed'])),
+                    ->visible(fn (Inspection $record) => $record->status === 'pending-verification'),
                 Action::make('reject')
                     ->label('Tolak')
                     ->icon('heroicon-o-x-circle')
@@ -286,10 +297,20 @@ class VerificationResource extends Resource
                                 \Illuminate\Support\Facades\DB::statement($sql, ['rejected', $data['verification_notes'], $userId, $record->id]);
                                 
                                 // Update status maintenance menjadi rejected jika ada
-                                $maintenance = \App\Models\Maintenance::where('equipment_id', $record->equipment_id)
-                                    ->where('technician_id', $record->technician_id)
-                                    ->whereIn('status', ['in-progress', 'planned', 'pending'])
-                                    ->first();
+                                $maintenance = null;
+                                
+                                // Coba cari berdasarkan maintenance_id jika ada
+                                if ($record->maintenance_id) {
+                                    $maintenance = \App\Models\Maintenance::find($record->maintenance_id);
+                                }
+                                
+                                // Jika tidak ditemukan, coba cari berdasarkan equipment_id dan technician_id
+                                if (!$maintenance) {
+                                    $maintenance = \App\Models\Maintenance::where('equipment_id', $record->equipment_id)
+                                        ->where('technician_id', $record->technician_id)
+                                        ->whereIn('status', ['in-progress', 'planned', 'pending', 'pending-verification'])
+                                        ->first();
+                                }
 
                                 if ($maintenance) {
                                     // Update status maintenance
@@ -337,14 +358,14 @@ class VerificationResource extends Resource
                                 'error' => $e->getMessage()
                             ]);
 
-                            Notification::make()
+                        Notification::make()
                                 ->title('Gagal menolak inspeksi')
                                 ->body('Terjadi kesalahan: ' . $e->getMessage())
-                                ->danger()
-                                ->send();
+                            ->danger()
+                            ->send();
                         }
                     })
-                    ->visible(fn (Inspection $record) => in_array($record->status, ['pending-verification', 'completed'])),
+                    ->visible(fn (Inspection $record) => $record->status === 'pending-verification'),
             ])
             ->bulkActions([
                 //

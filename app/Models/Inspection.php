@@ -21,7 +21,6 @@ class Inspection extends Model
     const STATUS_PENDING = 'pending';     // Belum dimulai
     const STATUS_IN_PROGRESS = 'in-progress'; // Sedang dikerjakan (baru upload foto sebelum)
     const STATUS_PENDING_VERIFICATION = 'pending-verification'; // Menunggu verifikasi (foto sebelum dan sesudah)
-    const STATUS_COMPLETED = 'completed'; // Sudah selesai dari sisi teknisi (upload foto sebelum dan sesudah)
     const STATUS_VERIFIED = 'verified';   // Sudah diverifikasi oleh supervisor
     const STATUS_REJECTED = 'rejected';   // Ditolak oleh supervisor
 
@@ -32,6 +31,7 @@ class Inspection extends Model
      */
     protected $fillable = [
         'equipment_id',
+        'maintenance_id',
         'technician_id',
         'inspection_date',
         'schedule_date',
@@ -109,7 +109,6 @@ class Inspection extends Model
                 self::STATUS_PENDING, 
                 self::STATUS_IN_PROGRESS,
                 self::STATUS_PENDING_VERIFICATION,
-                self::STATUS_COMPLETED, 
                 self::STATUS_VERIFIED, 
                 self::STATUS_REJECTED
             ];
@@ -124,9 +123,6 @@ class Inspection extends Model
                 }
                 elseif (strtolower($value) == 'pending-verification' || $value === self::STATUS_PENDING_VERIFICATION) {
                     $value = self::STATUS_PENDING_VERIFICATION;
-                }
-                elseif (strtolower($value) == 'completed' || $value === self::STATUS_COMPLETED) {
-                    $value = self::STATUS_COMPLETED;
                 }
                 elseif (strtolower($value) == 'verified' || $value === self::STATUS_VERIFIED) {
                     $value = self::STATUS_VERIFIED;
@@ -156,7 +152,6 @@ class Inspection extends Model
                 self::STATUS_PENDING, 
                 self::STATUS_IN_PROGRESS,
                 self::STATUS_PENDING_VERIFICATION,
-                self::STATUS_COMPLETED, 
                 self::STATUS_VERIFIED, 
                 self::STATUS_REJECTED
             ];
@@ -171,9 +166,6 @@ class Inspection extends Model
                 }
                 elseif (strcasecmp($status, 'pending-verification') == 0) {
                     $this->attributes['status'] = self::STATUS_PENDING_VERIFICATION;
-                }
-                elseif (strcasecmp($status, 'completed') == 0) {
-                    $this->attributes['status'] = self::STATUS_COMPLETED;
                 }
                 elseif (strcasecmp($status, 'verified') == 0) {
                     $this->attributes['status'] = self::STATUS_VERIFIED;
@@ -204,7 +196,6 @@ class Inspection extends Model
             self::STATUS_PENDING, 
             self::STATUS_IN_PROGRESS,
             self::STATUS_PENDING_VERIFICATION,
-            self::STATUS_COMPLETED, 
             self::STATUS_VERIFIED, 
             self::STATUS_REJECTED
         ];
@@ -224,6 +215,14 @@ class Inspection extends Model
     public function debugStatus()
     {
         return "Current status: '{$this->status}', Database type: " . gettype($this->status) . ", Original: " . json_encode($this->getOriginal('status'));
+    }
+
+    /**
+     * Get the maintenance that this inspection belongs to.
+     */
+    public function maintenance()
+    {
+        return $this->belongsTo(Maintenance::class);
     }
 
     /**
@@ -294,14 +293,6 @@ class Inspection extends Model
     public function isPendingVerification()
     {
         return $this->status === self::STATUS_PENDING_VERIFICATION;
-    }
-
-    /**
-     * Check if inspection has been completed.
-     */
-    public function isCompleted()
-    {
-        return $this->status === self::STATUS_COMPLETED;
     }
 
     /**

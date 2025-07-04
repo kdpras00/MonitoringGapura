@@ -49,8 +49,9 @@ class AppServiceProvider extends ServiceProvider
             ]);
         });
 
-        // Daftarkan observer untuk Maintenance
+        // Daftarkan observer untuk Maintenance dan Equipment
         Maintenance::observe(MaintenanceObserver::class);
+        \App\Models\Equipment::observe(\App\Observers\EquipmentObserver::class);
 
         // Notifikasi stok menipis pada SparePart
         SparePart::updated(function ($sparePart) {

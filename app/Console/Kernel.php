@@ -23,7 +23,7 @@ class Kernel extends ConsoleKernel
     /**
      * Define the application's command schedule.
      */
-    protected function schedule(Schedule $schedule)
+    protected function schedule(Schedule $schedule): void
     {
         $schedule->call(function () {
             $maintenances = Maintenance::whereDate('schedule_date', now()->toDateString())->get();
@@ -35,6 +35,8 @@ class Kernel extends ConsoleKernel
         
         // Jalankan command fill-data setiap hari pada jam 1 pagi
         $schedule->command('dashboard:fill-data')->dailyAt('01:00');
+
+        $schedule->command('app:clean-orphaned-inspections --force')->daily();
     }
 
     /**

@@ -104,13 +104,14 @@ class MaintenanceResource extends Resource
                     ->required(),
                 Forms\Components\DateTimePicker::make('schedule_date')
                     ->label('Jadwal Maintenance')
-                    ->required(),
-                Forms\Components\Select::make('technician_id')
-                    ->label('Teknisi')
-                    ->options(User::where('role', 'technician')->orWhere('role', '')->orWhereNull('role')->pluck('name', 'id'))
-                    ->searchable()
                     ->required()
-                    ->helperText('Pilih teknisi yang akan ditugaskan untuk maintenance ini'),
+                    ->reactive()
+                    ->afterStateUpdated(function (string $state, callable $set) {
+                        // Otomatis set jadwal berikutnya 3 bulan setelah jadwal maintenance
+                        $scheduleDate = Carbon::parse($state);
+                        $nextServiceDate = $scheduleDate->copy()->addMonths(3);
+                        $set('next_service_date', $nextServiceDate);
+                    }),
                 Forms\Components\Select::make('equipment_type')
                     ->label('Jenis Alat')
                     ->options([
@@ -147,7 +148,6 @@ class MaintenanceResource extends Resource
                         'pending-verification' => 'Pending Verification',
                         'verified' => 'Verified',
                         'rejected' => 'Rejected',
-                        'completed' => 'Completed',
                     ])
                     ->default('pending')
                     ->required(),
@@ -157,7 +157,7 @@ class MaintenanceResource extends Resource
                     ->required(),
                 Forms\Components\Textarea::make('notes')
                     ->label('Catatan')
-                    ->required(),
+                    ->nullable(),
                 Forms\Components\DateTimePicker::make('actual_date')
                     ->label('Tanggal Aktual')
                     ->visible(function (Forms\Get $get) {
@@ -182,7 +182,7 @@ class MaintenanceResource extends Resource
                 Forms\Components\FileUpload::make('before_image')
                     ->label('Foto Sebelum Maintenance')
                     ->directory('maintenance-before')
-                    ->required(),
+                    ->nullable(),
                 Forms\Components\FileUpload::make('after_image')
                     ->label('Foto Setelah Maintenance')
                     ->directory('maintenance-after')
@@ -199,8 +199,7 @@ class MaintenanceResource extends Resource
                         'kalibrasi' => 'Kalibrasi',
                         'pengujian_keamanan' => 'Pengujian Keamanan',
                     ])
-                    ->columns(2)
-                    ->required(),
+                    ->columns(2),
                 Forms\Components\Select::make('approval_status')
                     ->label('Status Approval')
                     ->options([
@@ -223,22 +222,20 @@ class MaintenanceResource extends Resource
                     }),
                 Forms\Components\DateTimePicker::make('next_service_date')
                     ->label('Jadwal Service Berikutnya')
-                    ->required(),
+                    ->helperText('Otomatis diisi 3 bulan setelah jadwal maintenance'),
             ]);
     }
 
     public static function table(Table $table): Table
     {
         $isAdmin = auth()->user()->role === 'admin';
+        $isTechnician = auth()->user()->role === 'technician';
         
         // Jika user adalah teknisi, filter data hanya untuk maintenance yang ditugaskan kepadanya
         $table = $table
-            ->modifyQueryUsing(function ($query) use ($isAdmin) {
-                if (!$isAdmin) {
+            ->modifyQueryUsing(function ($query) use ($isTechnician) {
+                if ($isTechnician) {
                     $query->where('technician_id', auth()->id());
-                } else {
-                    // Untuk admin, hanya tampilkan data yang sudah ditugaskan ke teknisi
-                    $query->whereNotNull('technician_id');
                 }
                 
                 return $query;
@@ -274,7 +271,6 @@ class MaintenanceResource extends Resource
                         'purple' => 'pending-verification',
                         'green' => 'verified',
                         'danger' => 'rejected',
-                        'success' => 'completed',
                     ])
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'pending' => 'Pending Approval',
@@ -284,7 +280,6 @@ class MaintenanceResource extends Resource
                         'pending-verification' => 'Pending Verification',
                         'verified' => 'Verified',
                         'rejected' => 'Rejected',
-                        'completed' => 'Completed',
                         default => $state,
                     }),
             ])
@@ -298,7 +293,6 @@ class MaintenanceResource extends Resource
                         'pending-verification' => 'Pending Verification',
                         'verified' => 'Verified',
                         'rejected' => 'Rejected',
-                        'completed' => 'Completed',
                     ]),
                 Tables\Filters\SelectFilter::make('equipment_type')
                     ->label('Jenis Alat')
@@ -334,6 +328,8 @@ class MaintenanceResource extends Resource
                     ])
                     ->action(function (Maintenance $record, array $data) {
                         $record->technician_id = $data['technician_id'];
+                        // Ubah status menjadi assigned saat teknisi ditugaskan
+                        $record->status = 'assigned';
                         $record->save();
                         
                         // Update role user menjadi teknisi jika belum
@@ -351,12 +347,21 @@ class MaintenanceResource extends Resource
                         if (!$inspection) {
                             $inspection = new Inspection();
                             $inspection->equipment_id = $record->equipment_id;
+                            $inspection->maintenance_id = $record->id; // Tambahkan maintenance_id
                             $inspection->technician_id = $record->technician_id;
                             $inspection->inspection_date = $record->schedule_date;
                             $inspection->schedule_date = $record->schedule_date;
                             $inspection->status = 'pending';
                             $inspection->notes = "Dibuat otomatis dari penugasan teknisi: " . $record->schedule_date->format('d M Y H:i');
                             $inspection->save();
+                        }
+                        
+                        // Kirim notifikasi ke teknisi
+                        if ($technician) {
+                            Notification::make()
+                                ->title('Anda ditugaskan untuk maintenance')
+                                ->body('Anda telah ditugaskan untuk maintenance pada ' . $record->schedule_date->format('d M Y H:i'))
+                                ->sendToDatabase($technician);
                         }
                         
                         Notification::make()
@@ -391,46 +396,29 @@ class MaintenanceResource extends Resource
 
     public static function afterCreate($record)
     {
-        // Buat inspection baru otomatis saat maintenance dibuat jika ada teknisi yang ditugaskan
-        if ($record->technician_id) {
-            // Cek apakah sudah ada inspection untuk kombinasi equipment dan teknisi ini
-            $existingInspection = Inspection::where('equipment_id', $record->equipment_id)
-                ->where('technician_id', $record->technician_id)
-                ->first();
-                
-            if (!$existingInspection) {
-                $inspection = new Inspection();
-                $inspection->equipment_id = $record->equipment_id;
-                $inspection->technician_id = $record->technician_id;
-                $inspection->inspection_date = $record->schedule_date;
-                $inspection->schedule_date = $record->schedule_date;
-                $inspection->status = 'pending';
-                $inspection->notes = "Dibuat otomatis dari jadwal maintenance: " . $record->schedule_date->format('d M Y H:i');
-                $inspection->save();
-            }
-
-            Notification::make()
-                ->title('Reminder Maintenance')
-                ->body('Anda memiliki jadwal maintenance untuk ' . ($record->equipment ? $record->equipment->name : 'peralatan'))
-                ->success()
-                ->send();
-        }
+        // Tidak perlu membuat inspeksi otomatis karena teknisi belum ditugaskan
+        // Teknisi akan ditugaskan melalui tombol "Tugaskan Teknisi"
     }
 
     public static function afterUpdate($record)
     {
-        // Perbarui inspection terkait jika data maintenance diubah
-        if ($record->isDirty('equipment_id') || $record->isDirty('technician_id') || $record->isDirty('schedule_date')) {
+        // Perbarui inspection terkait jika data maintenance diubah dan ada teknisi yang ditugaskan
+        if ($record->technician_id && ($record->isDirty('equipment_id') || $record->isDirty('technician_id') || $record->isDirty('schedule_date'))) {
             // Cari inspection terkait
-            $inspection = Inspection::where('equipment_id', $record->getOriginal('equipment_id'))
-                ->where('technician_id', $record->getOriginal('technician_id'))
-                ->where('status', 'pending')
-                ->latest()
-                ->first();
+            $inspection = Inspection::where('maintenance_id', $record->id)->first();
+            
+            if (!$inspection) {
+                $inspection = Inspection::where('equipment_id', $record->getOriginal('equipment_id'))
+                    ->where('technician_id', $record->getOriginal('technician_id'))
+                    ->where('status', 'pending')
+                    ->latest()
+                    ->first();
+            }
 
             if ($inspection) {
                 $inspection->equipment_id = $record->equipment_id;
                 $inspection->technician_id = $record->technician_id;
+                $inspection->maintenance_id = $record->id; // Pastikan maintenance_id terisi
                 $inspection->inspection_date = $record->schedule_date;
                 $inspection->schedule_date = $record->schedule_date;
                 $inspection->notes = "Diperbarui dari jadwal maintenance: " . $record->schedule_date->format('d M Y H:i');
@@ -439,6 +427,7 @@ class MaintenanceResource extends Resource
                 // Jika tidak ada inspection yang ditemukan, buat yang baru
                 $inspection = new Inspection();
                 $inspection->equipment_id = $record->equipment_id;
+                $inspection->maintenance_id = $record->id; // Tambahkan maintenance_id
                 $inspection->technician_id = $record->technician_id;
                 $inspection->inspection_date = $record->schedule_date;
                 $inspection->schedule_date = $record->schedule_date;
@@ -492,9 +481,9 @@ class MaintenanceResource extends Resource
     {
         $query = parent::getEloquentQuery();
         
-        // Admin hanya melihat maintenance yang sudah ditugaskan ke teknisi
-        if (auth()->user() && auth()->user()->role === 'admin') {
-            $query->whereNotNull('technician_id');
+        // Teknisi hanya melihat maintenance yang ditugaskan kepadanya
+        if (auth()->user() && auth()->user()->role === 'technician') {
+            $query->where('technician_id', auth()->id());
         }
         
         return $query;

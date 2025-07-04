@@ -77,8 +77,8 @@ class ListVerifications extends ListRecords
             ]);
         });
 
-        // Pastikan benar-benar hanya menampilkan yang status completed
-        $query->whereRaw("status = 'completed'");
+        // Pastikan benar-benar hanya menampilkan yang status pending-verification
+        $query->whereRaw("status = 'pending-verification'");
         
         // Eager load relasi equipment dan technician untuk menghindari N+1 query
         $query->with(['equipment', 'technician']);
@@ -98,7 +98,7 @@ class ListVerifications extends ListRecords
     
     protected function getTableEmptyStateDescription(): ?string
     {
-        return 'Tidak ada inspeksi dengan status "Completed" yang perlu diverifikasi saat ini.';
+        return 'Tidak ada inspeksi dengan status "Pending Verification" yang perlu diverifikasi saat ini.';
     }
     
     protected function getTableEmptyStateIcon(): string
@@ -108,7 +108,7 @@ class ListVerifications extends ListRecords
     
     protected function getTableDescription(): ?string
     {
-        $inspectionCount = Inspection::where('status', 'completed')->count();
+        $inspectionCount = Inspection::where('status', 'pending-verification')->count();
         return "Total inspeksi yang perlu diverifikasi: {$inspectionCount}";
     }
     

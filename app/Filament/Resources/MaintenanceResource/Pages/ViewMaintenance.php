@@ -26,6 +26,7 @@ class ViewMaintenance extends ViewRecord
                     // Buat inspection baru jika belum ada
                     $inspection = new Inspection();
                     $inspection->equipment_id = $record->equipment_id;
+                    $inspection->maintenance_id = $record->id;
                     $inspection->technician_id = $record->technician_id;
                     $inspection->inspection_date = $record->schedule_date;
                     $inspection->schedule_date = $record->schedule_date;

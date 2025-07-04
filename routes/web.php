@@ -118,6 +118,11 @@ Route::middleware(['auth'])->group(function () {
 
     // Barcode
     Route::get('/equipment/{equipment}/barcode', [EquipmentController::class, 'barcode'])->name('equipment.barcode');
+    
+    // Spare Parts routes
+    Route::get('/spare-parts/{sparePart}/barcode', [App\Http\Controllers\SparePartController::class, 'barcode'])->name('spare-parts.barcode');
+    Route::get('/spare-parts/scan', [App\Http\Controllers\SparePartController::class, 'scan'])->name('spare-parts.scan');
+    Route::get('/spare-parts/not-found', [App\Http\Controllers\SparePartController::class, 'notFound'])->name('spare-parts.not-found');
 });
 
 // Memasukkan route authentication dari Laravel Breeze/Fortify

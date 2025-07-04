@@ -21,6 +21,11 @@ class UploadInspectionPhotos extends EditRecord
 
     protected static string $view = 'filament.resources.inspection-resource.pages.upload-inspection-photos';
     
+    public function getTitle(): string
+    {
+        return 'Upload Inspeksi';
+    }
+    
     // Menghapus tombol default
     protected function getHeaderActions(): array
     {
@@ -107,6 +112,9 @@ class UploadInspectionPhotos extends EditRecord
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
         // Update hanya field yang diizinkan untuk teknisi
+        $oldBeforeImage = $record->before_image;
+        $oldAfterImage = $record->after_image;
+        
         $record->before_image = $data['before_image'] ?? $record->before_image;
         $record->after_image = $data['after_image'] ?? $record->after_image;
         $record->status = $data['status'];
@@ -118,47 +126,89 @@ class UploadInspectionPhotos extends EditRecord
         $record->location_lng = $data['location_lng'] ?? $record->location_lng;
         $record->location_timestamp = $data['location_timestamp'] ?? now();
         
-        // Update tanggal penyelesaian berdasarkan status
-        if (in_array($data['status'], ['pending-verification', 'completed'])) {
-            $record->completion_date = $data['completion_date'] ?? now();
+        // Cari maintenance terkait berdasarkan maintenance_id atau kombinasi equipment_id dan technician_id
+        $maintenance = null;
+        if ($record->maintenance_id) {
+            $maintenance = \App\Models\Maintenance::find($record->maintenance_id);
+        }
+        
+        if (!$maintenance) {
+            $maintenance = \App\Models\Maintenance::where('equipment_id', $record->equipment_id)
+                ->where('technician_id', $record->technician_id)
+                ->whereIn('status', ['pending', 'planned', 'assigned', 'in-progress', 'pending-verification'])
+                ->latest()
+                ->first();
+        }
+        
+        // Deteksi perubahan foto dan update status
+        $beforeImageAdded = empty($oldBeforeImage) && !empty($record->before_image);
+        $afterImageAdded = empty($oldAfterImage) && !empty($record->after_image);
+        
+        // Jika foto sebelum baru ditambahkan, ubah status menjadi in-progress
+        if ($beforeImageAdded) {
+            $record->status = 'in-progress';
             
-            // Update status maintenance terkait menjadi pending-verification
-            $maintenance = \App\Models\Maintenance::where('equipment_id', $record->equipment_id)
-                ->where('technician_id', $record->technician_id)
-                ->whereIn('status', ['in-progress', 'assigned', 'planned'])
-                ->first();
-                
-            if ($maintenance) {
-                $maintenance->status = \App\Models\Maintenance::STATUS_PENDING_VERIFICATION;
-                $maintenance->save();
-                
-                // Log perubahan
-                \Illuminate\Support\Facades\Log::info('Maintenance status updated to pending-verification', [
-                    'maintenance_id' => $maintenance->id,
-                    'inspection_id' => $record->id,
-                    'technician_id' => $record->technician_id
-                ]);
-            }
-        } else if ($data['status'] === 'in-progress' && !empty($record->before_image) && empty($record->after_image)) {
-            // Jika hanya ada foto sebelum, update status maintenance menjadi in-progress
-            $maintenance = \App\Models\Maintenance::where('equipment_id', $record->equipment_id)
-                ->where('technician_id', $record->technician_id)
-                ->whereIn('status', ['assigned', 'planned'])
-                ->first();
-                
+            // Update status maintenance jika ada
             if ($maintenance) {
                 $maintenance->status = \App\Models\Maintenance::STATUS_IN_PROGRESS;
+                $maintenance->before_image = $record->before_image;
                 $maintenance->save();
                 
-                // Log perubahan
-                \Illuminate\Support\Facades\Log::info('Maintenance status updated to in-progress', [
+                \Illuminate\Support\Facades\Log::info('Maintenance status updated to in-progress after before_image upload', [
                     'maintenance_id' => $maintenance->id,
-                    'inspection_id' => $record->id,
-                    'technician_id' => $record->technician_id
+                    'inspection_id' => $record->id
                 ]);
             }
-        } else {
-            $record->completion_date = null;
+        }
+        
+        // Jika foto sesudah baru ditambahkan, ubah status menjadi pending-verification
+        if ($afterImageAdded) {
+            $record->status = 'pending-verification';
+            $record->completion_date = now();
+            
+            // Update status maintenance jika ada
+            if ($maintenance) {
+                $maintenance->status = \App\Models\Maintenance::STATUS_PENDING_VERIFICATION;
+                $maintenance->after_image = $record->after_image;
+                $maintenance->save();
+                
+                \Illuminate\Support\Facades\Log::info('Maintenance status updated to pending-verification after after_image upload', [
+                    'maintenance_id' => $maintenance->id,
+                    'inspection_id' => $record->id
+                ]);
+            }
+        }
+        
+        // Update status berdasarkan pilihan user jika tidak ada perubahan foto
+        if (!$beforeImageAdded && !$afterImageAdded) {
+            // Update tanggal penyelesaian berdasarkan status
+            if ($data['status'] === 'pending-verification') {
+                $record->completion_date = $data['completion_date'] ?? now();
+                
+                // Update status maintenance jika ada
+                if ($maintenance) {
+                    $maintenance->status = \App\Models\Maintenance::STATUS_PENDING_VERIFICATION;
+                    $maintenance->save();
+                    
+                    \Illuminate\Support\Facades\Log::info('Maintenance status updated to pending-verification', [
+                        'maintenance_id' => $maintenance->id,
+                        'inspection_id' => $record->id
+                    ]);
+                }
+            } else if ($data['status'] === 'in-progress') {
+                // Update status maintenance jika ada
+                if ($maintenance) {
+                    $maintenance->status = \App\Models\Maintenance::STATUS_IN_PROGRESS;
+                    $maintenance->save();
+                    
+                    \Illuminate\Support\Facades\Log::info('Maintenance status updated to in-progress', [
+                        'maintenance_id' => $maintenance->id,
+                        'inspection_id' => $record->id
+                    ]);
+                }
+            } else {
+                $record->completion_date = null;
+            }
         }
         
         $record->save();
@@ -221,7 +271,6 @@ class UploadInspectionPhotos extends EditRecord
                                 'pending' => 'Belum Selesai',
                                 'in-progress' => 'Sedang Dikerjakan',
                                 'pending-verification' => 'Menunggu Verifikasi',
-                                'completed' => 'Selesai',
                             ])
                             ->default(fn () => $this->record->status)
                             ->required()
@@ -264,8 +313,8 @@ class UploadInspectionPhotos extends EditRecord
                             ->imageCropAspectRatio('1:1')
                             ->imageResizeTargetWidth('600')
                             ->imageResizeTargetHeight('600')
-                            ->required(fn ($get) => in_array($get('status'), ['pending-verification', 'completed']) && empty($this->record->after_image))
-                            ->visible(fn ($get) => in_array($get('status'), ['pending-verification', 'completed']))
+                            ->required(fn ($get) => $get('status') === 'pending-verification' && empty($this->record->after_image))
+                            ->visible(fn ($get) => $get('status') === 'pending-verification')
                             ->helperText('Upload foto kondisi setelah inspeksi selesai dilakukan.'),
                     ]),
                 

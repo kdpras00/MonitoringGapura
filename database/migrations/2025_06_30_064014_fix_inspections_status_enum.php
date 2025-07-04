@@ -18,14 +18,11 @@ return new class extends Migration
 
         // Update data yang sudah ada dengan literal strings
         DB::table('inspections')
-            ->where('status', '=', 'verified')
-            ->orWhere('status', '=', 'rejected')
-            ->orWhere('status', '=', 'completed')
-            ->orWhere('status', '=', 'pending')
+            ->whereIn('status', ['pending', 'in-progress', 'pending-verification', 'verified', 'rejected', 'completed'])
             ->update(['status' => DB::raw("status")]);
 
-        // Buat ulang kolom enum dengan quotes
-        DB::statement("ALTER TABLE inspections MODIFY COLUMN status ENUM('pending', 'completed', 'verified', 'rejected') NOT NULL DEFAULT 'pending'");
+        // Buat ulang kolom enum dengan quotes dan semua nilai yang mungkin
+        DB::statement("ALTER TABLE inspections MODIFY COLUMN status ENUM('pending', 'in-progress', 'pending-verification', 'verified', 'rejected', 'completed') NOT NULL DEFAULT 'pending'");
 
         // Cek definisi ulang tabel
         $results = DB::select("SHOW COLUMNS FROM inspections WHERE Field = 'status'");

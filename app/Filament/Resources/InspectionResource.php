@@ -77,7 +77,6 @@ class InspectionResource extends Resource
                         'pending' => 'Belum Selesai',
                         'in-progress' => 'Sedang Dikerjakan',
                         'pending-verification' => 'Menunggu Verifikasi',
-                        'completed' => 'Selesai',
                         'verified' => 'Terverifikasi',
                         'rejected' => 'Ditolak',
                     ])
@@ -198,20 +197,17 @@ class InspectionResource extends Resource
 
         return $table
             ->modifyQueryUsing(function (Builder $query) use ($isTechnician, $isSupervisor, $user) {
-                // Teknisi hanya melihat inspection yang ditugaskan kepadanya
                 if ($isTechnician) {
+                    // Teknisi hanya bisa melihat inspeksi yang ditugaskan kepadanya
+                    // Dan hanya yang belum diverifikasi atau ditolak
                     $query->where('technician_id', $user->id)
-                          ->whereNotIn('status', ['verified', 'rejected']); // Inspeksi yang sudah diverifikasi atau ditolak tidak muncul
-                }
-
-                // Supervisor hanya melihat inspection yang status completed
-                if ($isSupervisor) {
-                    $query->where('status', 'completed');
-                }
-
-                // Admin hanya melihat data yang sudah ditugaskan ke teknisi
-                if ($user->role === 'admin') {
-                    $query->whereNotNull('technician_id');
+                          ->whereNotIn('status', ['verified', 'rejected']);
+                } elseif ($isSupervisor) {
+                    // Supervisor bisa melihat semua inspeksi
+                    // Tidak perlu filter tambahan
+                } else {
+                    // Admin bisa melihat semua inspeksi
+                    // Tidak perlu filter tambahan
                 }
             })
             ->columns([
@@ -240,6 +236,23 @@ class InspectionResource extends Resource
                     ->label('Foto Setelah')
                     ->circular()
                     ->toggleable(),
+                Tables\Columns\BadgeColumn::make('status')
+                    ->label('Status')
+                    ->colors([
+                        'warning' => 'pending',
+                        'primary' => 'in-progress',
+                        'purple' => 'pending-verification',
+                        'green' => 'verified',
+                        'danger' => 'rejected',
+                    ])
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'pending' => 'Belum Selesai',
+                        'in-progress' => 'Sedang Dikerjakan',
+                        'pending-verification' => 'Menunggu Verifikasi',
+                        'verified' => 'Terverifikasi',
+                        'rejected' => 'Ditolak',
+                        default => $state,
+                    }),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('equipment_id')
@@ -248,7 +261,14 @@ class InspectionResource extends Resource
                 Tables\Filters\SelectFilter::make('technician_id')
                     ->label('Teknisi')
                     ->relationship('technician', 'name'),
-                // Filter status dihilangkan
+                Tables\Filters\SelectFilter::make('status')
+                    ->options([
+                        'pending' => 'Belum Selesai',
+                        'in-progress' => 'Sedang Dikerjakan',
+                        'pending-verification' => 'Menunggu Verifikasi',
+                        'verified' => 'Terverifikasi',
+                        'rejected' => 'Ditolak',
+                    ]),
             ])
             ->actions([
                 // ViewAction diganti dengan Action Tugaskan Teknisi
@@ -281,13 +301,11 @@ class InspectionResource extends Resource
                     })
                     ->visible(fn () => auth()->user()->role === 'admin'),
                 Action::make('upload_photos')
-                    ->label('Upload Foto')
+                    ->label('Upload Inspeksi')
                     ->icon('heroicon-o-camera')
                     ->color('primary')
                     ->url(fn (Inspection $record) => static::getUrl('upload-photos', ['record' => $record->id]))
                     ->visible(fn (Inspection $record) => auth()->user()->isTechnician() && $record->technician_id === auth()->id()),
-                EditAction::make()
-                    ->visible(fn () => !auth()->user()->isTechnician()),
                 Action::make('verify')
                     ->label('Verifikasi')
                     ->icon('heroicon-o-check-circle')
@@ -375,13 +393,10 @@ class InspectionResource extends Resource
                             ->send();
                     })
                     ->visible(fn (Inspection $record) => auth()->user()->role === 'supervisor' && $record->status === 'completed'),
-                DeleteAction::make()
-                    ->visible(fn () => auth()->user()->role === 'admin'),
-                // Tombol Lihat Maintenance dihilangkan karena tombol View sudah dihapus
+                // Tombol Delete dan Lihat Maintenance dihilangkan
             ])
             ->bulkActions([
-                DeleteBulkAction::make()
-                    ->visible(fn () => auth()->user()->role === 'admin'),
+                // Bulk actions dihapus
             ]);
     }
 
@@ -397,9 +412,8 @@ class InspectionResource extends Resource
         return [
             'index' => Pages\ListInspections::route('/'),
             'create' => Pages\CreateInspection::route('/create'),
-            'edit' => Pages\EditInspection::route('/{record}/edit'),
             'view' => Pages\ViewInspection::route('/{record}'),
-            'upload-photos' => Pages\UploadInspectionPhotos::route('/{record}/upload-photos'),
+            'upload-photos' => Pages\UploadInspectionPhotos::route('/{record}/upload-inspeksi'),
         ];
     }
 }
