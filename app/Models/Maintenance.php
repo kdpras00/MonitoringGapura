@@ -15,8 +15,7 @@ class Maintenance extends Model
     /**
      * Status constants
      */
-    const STATUS_PENDING = 'pending';     // Reported / Pending Approval
-    const STATUS_PLANNED = 'planned';     // Jadwal sudah disusun, belum ada teknisi
+    const STATUS_PENDING = 'pending';     // Jadwal sudah disusun, menunggu penugasan teknisi
     const STATUS_ASSIGNED = 'assigned';   // Teknisi sudah ditugaskan
     const STATUS_IN_PROGRESS = 'in-progress'; // Sedang dikerjakan (foto sebelum)
     const STATUS_PENDING_VERIFICATION = 'pending-verification'; // Menunggu verifikasi (foto sesudah)
@@ -164,7 +163,8 @@ class Maintenance extends Model
                 'technician_id' => $maintenance->technician_id
             ]);
             
-            // Inspeksi akan otomatis dihapus karena kita menggunakan cascade di foreign key
+            // Hapus inspeksi terkait saat maintenance dihapus
+            $maintenance->inspections()->delete();
         });
     }
 
@@ -205,7 +205,7 @@ class Maintenance extends Model
      */
     public function isPlanned()
     {
-        return $this->status === self::STATUS_PLANNED;
+        return $this->status === self::STATUS_PENDING;
     }
 
     /**

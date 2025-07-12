@@ -22,6 +22,7 @@ use Filament\Notifications\Notification;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class InspectionResource extends Resource
 {
@@ -36,12 +37,73 @@ class InspectionResource extends Resource
     public static function canViewAny(): bool
     {
         $user = auth()->user();
-        return $user && $user->isTechnician();
+        
+        // Jika bukan teknisi, kembalikan false
+        if (!$user || !$user->isTechnician()) {
+            return false;
+        }
+        
+        // Jika teknisi, cek apakah ada inspection yang ditugaskan kepadanya
+        // yang belum selesai (tidak verified atau rejected)
+        $hasInspections = Inspection::where('technician_id', $user->id)
+            ->whereNotIn('status', ['verified', 'rejected'])
+            ->exists();
+            
+        return $hasInspections;
     }
 
     public static function shouldRegisterNavigation(): bool
     {
         return self::canViewAny();
+    }
+    
+    public static function canView(Model $record): bool
+    {
+        $user = auth()->user();
+        
+        // Admin dan supervisor bisa melihat semua
+        if ($user && ($user->role === 'admin' || $user->role === 'supervisor')) {
+            return true;
+        }
+        
+        // Teknisi hanya bisa melihat inspection yang ditugaskan kepadanya
+        if ($user && $user->isTechnician()) {
+            return $record->technician_id === $user->id;
+        }
+        
+        return false;
+    }
+    
+    public static function canEdit(Model $record): bool
+    {
+        $user = auth()->user();
+        
+        // Admin bisa edit semua
+        if ($user && $user->role === 'admin') {
+            return true;
+        }
+        
+        // Supervisor tidak bisa edit
+        if ($user && $user->role === 'supervisor') {
+            return false;
+        }
+        
+        // Teknisi hanya bisa edit inspection yang ditugaskan kepadanya
+        // Dan statusnya belum verified atau rejected
+        if ($user && $user->isTechnician()) {
+            return $record->technician_id === $user->id && 
+                   !in_array($record->status, ['verified', 'rejected']);
+        }
+        
+        return false;
+    }
+    
+    public static function canDelete(Model $record): bool
+    {
+        $user = auth()->user();
+        
+        // Hanya admin yang bisa delete
+        return $user && $user->role === 'admin';
     }
 
     public static function form(Form $form): Form
@@ -209,6 +271,21 @@ class InspectionResource extends Resource
                     // Admin bisa melihat semua inspeksi
                     // Tidak perlu filter tambahan
                 }
+                
+                // Filter untuk hanya menampilkan inspection yang terkait dengan maintenance
+                // yang statusnya sesuai dan sudah memiliki teknisi
+                $query->where(function ($q) {
+                    // Inspection dengan maintenance_id yang valid
+                    $q->whereHas('maintenance', function ($mq) {
+                        $mq->whereIn('status', ['assigned', 'in-progress', 'pending-verification'])
+                           ->whereNotNull('technician_id');
+                    })
+                    // ATAU inspection tanpa maintenance_id tapi dengan technician_id
+                    ->orWhere(function ($q2) {
+                        $q2->whereNull('maintenance_id')
+                           ->whereNotNull('technician_id');
+                    });
+                });
             })
             ->columns([
                 Tables\Columns\TextColumn::make('equipment.name')
@@ -224,6 +301,11 @@ class InspectionResource extends Resource
                     ->label('Tanggal Penyelesaian')
                     ->dateTime('d M Y H:i')
                     ->sortable()
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('maintenance.id')
+                    ->label('ID Maintenance')
+                    ->url(fn (Inspection $record) => $record->maintenance_id ? 
+                        MaintenanceResource::getUrl('view', ['record' => $record->maintenance_id]) : null)
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('location')
                     ->label('Lokasi')
@@ -305,7 +387,9 @@ class InspectionResource extends Resource
                     ->icon('heroicon-o-camera')
                     ->color('primary')
                     ->url(fn (Inspection $record) => static::getUrl('upload-photos', ['record' => $record->id]))
-                    ->visible(fn (Inspection $record) => auth()->user()->isTechnician() && $record->technician_id === auth()->id()),
+                    ->visible(fn (Inspection $record) => auth()->user()->isTechnician() && 
+                        $record->technician_id === auth()->id() && 
+                        !in_array($record->status, ['verified', 'rejected'])),
                 Action::make('verify')
                     ->label('Verifikasi')
                     ->icon('heroicon-o-check-circle')

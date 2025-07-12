@@ -72,6 +72,33 @@ class Inspection extends Model
         parent::boot();
 
         // Observer untuk status changes
+        static::creating(function ($inspection) {
+            // Pastikan tidak ada duplikat inspeksi untuk kombinasi equipment_id, technician_id, dan status=pending
+            if ($inspection->status === 'pending') {
+                $existingInspection = self::where('equipment_id', $inspection->equipment_id)
+                    ->where('technician_id', $inspection->technician_id)
+                    ->where('status', 'pending')
+                    ->first();
+                
+                if ($existingInspection) {
+                    // Jika sudah ada, gunakan yang sudah ada
+                    return false;
+                }
+            }
+            
+            // Pastikan tidak ada duplikat inspeksi untuk maintenance_id yang sama
+            if ($inspection->maintenance_id) {
+                $existingInspection = self::where('maintenance_id', $inspection->maintenance_id)
+                    ->first();
+                    
+                if ($existingInspection) {
+                    // Jika maintenance_id sudah digunakan di inspeksi lain
+                    \Log::warning('Mencoba membuat inspeksi duplikat untuk maintenance_id: ' . $inspection->maintenance_id);
+                    return false;
+                }
+            }
+        });
+        
         static::updating(function ($inspection) {
             if (isset($inspection->attributes['status']) &&
                 isset($inspection->original['status']) &&

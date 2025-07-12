@@ -35,8 +35,7 @@ Route::post('/admin/login', function (Request $request) {
 })->name('filament.auth.attempt');
 
 Route::get('/', function () {
-    // return view('home');
-    return redirect('/admin');
+    return view('welcome');
 });
 
 // Public routes for QR Code access (no authentication required)
@@ -77,6 +76,14 @@ Route::middleware(['web'])->group(function () {
 
     // Access equipment by serial number
     Route::get('/equipment/serial/{serial}', [EquipmentController::class, 'showBySerial'])->name('equipment.serial');
+    
+    // Operator public routes (no login required)
+    Route::get('/report-issue', [App\Http\Controllers\EquipmentReportController::class, 'publicCreate'])
+        ->name('public.report.create');
+    Route::post('/report-issue', [App\Http\Controllers\EquipmentReportController::class, 'publicStore'])
+        ->name('public.report.store');
+    Route::get('/report-success', [App\Http\Controllers\EquipmentReportController::class, 'publicSuccess'])
+        ->name('public.report.success');
 });
 
 // Kelompok route yang membutuhkan autentikasi

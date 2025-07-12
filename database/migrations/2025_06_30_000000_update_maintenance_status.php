@@ -12,17 +12,32 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Update status maintenance yang belum diverifikasi menjadi 'pending'
-        DB::table('maintenances')
-            ->where('status', 'completed')
-            ->whereNotExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('inspections')
-                    ->whereRaw('inspections.equipment_id = maintenances.equipment_id')
-                    ->whereRaw('inspections.technician_id = maintenances.technician_id')
-                    ->where('inspections.status', 'verified');
-            })
-            ->update(['status' => 'pending']);
+        // Periksa struktur tabel terlebih dahulu
+        if (!Schema::hasColumn('maintenances', 'technician_id')) {
+            // Jika kolom technician_id tidak ada, tidak ada yang perlu diupdate
+            return;
+        }
+        
+        try {
+            // Update status maintenance yang belum diverifikasi menjadi 'pending'
+            DB::table('maintenances')
+                ->where('status', 'completed')
+                ->whereNotExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('inspections')
+                        ->whereRaw('inspections.equipment_id = maintenances.equipment_id')
+                        ->whereRaw('inspections.technician_id = maintenances.technician_id')
+                        ->where('inspections.status', 'verified');
+                })
+                ->update(['status' => 'pending']);
+        } catch (\Exception $e) {
+            // Tangani error jika SQL gagal dijalankan
+            DB::table('migration_logs')->insert([
+                'migration' => '2025_06_30_000000_update_maintenance_status',
+                'error' => $e->getMessage(),
+                'created_at' => now()
+            ]);
+        }
     }
 
     /**
@@ -30,9 +45,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Kembalikan status ke 'completed'
-        DB::table('maintenances')
-            ->where('status', 'pending')
-            ->update(['status' => 'completed']);
+        // Tidak ada yang perlu di-rollback
     }
 }; 

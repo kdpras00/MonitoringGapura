@@ -30,6 +30,9 @@ class InspectionRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('id')
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->label('ID')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('inspection_date')
                     ->label('Tanggal Inspeksi')
                     ->dateTime(),
@@ -58,10 +61,30 @@ class InspectionRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make()
                     ->url(function ($livewire) {
                         $maintenance = $livewire->getOwnerRecord();
-                        // Buat inspection baru
+                        
+                        // Cek apakah sudah ada inspection dengan equipment_id dan technician_id yang sama
+                        $existingInspection = Inspection::where('equipment_id', $maintenance->equipment_id)
+                            ->where('technician_id', $maintenance->technician_id)
+                            ->where('status', 'pending')
+                            ->first();
+                        
+                        // Jika sudah ada, gunakan inspection yang sudah ada
+                        if ($existingInspection) {
+                            // Tambahkan notifikasi
+                            \Filament\Notifications\Notification::make()
+                                ->title('Inspection sudah ada')
+                                ->body("Inspection untuk equipment dan teknisi ini sudah ada dengan status pending.")
+                                ->warning()
+                                ->send();
+                                
+                            return route('filament.admin.resources.inspections.view', ['record' => $existingInspection->id]);
+                        }
+                        
+                        // Buat inspection baru jika belum ada
                         $inspection = new Inspection();
                         $inspection->equipment_id = $maintenance->equipment_id;
                         $inspection->technician_id = $maintenance->technician_id;
+                        $inspection->maintenance_id = $maintenance->id; // Tambahkan maintenance_id
                         $inspection->inspection_date = $maintenance->schedule_date;
                         $inspection->schedule_date = $maintenance->schedule_date;
                         $inspection->status = 'pending';
@@ -69,14 +92,15 @@ class InspectionRelationManager extends RelationManager
                         $inspection->save();
                         
                         // Redirect ke halaman edit inspection
-                        return route('filament.admin.resources.inspections.edit', ['record' => $inspection->id]);
+                        return route('filament.admin.resources.inspections.view', ['record' => $inspection->id]);
                     }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make()
                     ->url(fn ($record) => route('filament.admin.resources.inspections.view', ['record' => $record->id])),
                 Tables\Actions\EditAction::make()
-                    ->url(fn ($record) => route('filament.admin.resources.inspections.edit', ['record' => $record->id])),
+                    ->url(fn ($record) => route('filament.admin.resources.inspections.view', ['record' => $record->id]))
+                    ->visible(fn ($record) => !in_array($record->status, ['verified', 'rejected'])),
             ])
             ->bulkActions([
                 //

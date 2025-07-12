@@ -12,7 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('maintenances', function (Blueprint $table) {
-            $table->dateTime('actual_date')->nullable()->change();
+            // Cek apakah kolom actual_date ada
+            if (Schema::hasColumn('maintenances', 'actual_date')) {
+                $table->dateTime('actual_date')->nullable()->change();
+            }
         });
     }
 
@@ -21,8 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('maintenances', function (Blueprint $table) {
-            $table->dateTime('actual_date')->nullable(false)->change();
-        });
+        // Tidak perlu melakukan apa-apa untuk rollback
     }
 };

@@ -141,8 +141,7 @@ class MaintenanceResource extends Resource
                 Forms\Components\Select::make('status')
                     ->label('Status')
                     ->options([
-                        'pending' => 'Reported / Pending Approval',
-                        'planned' => 'Planned',
+                        'pending' => 'Planned / Scheduled',
                         'assigned' => 'Assigned',
                         'in-progress' => 'In Progress',
                         'pending-verification' => 'Pending Verification',
@@ -264,8 +263,7 @@ class MaintenanceResource extends Resource
                 Tables\Columns\BadgeColumn::make('status')
                     ->label('Status')
                     ->colors([
-                        'warning' => 'pending',
-                        'primary' => 'planned',
+                        'primary' => 'pending',
                         'secondary' => 'assigned',
                         'info' => 'in-progress',
                         'purple' => 'pending-verification',
@@ -273,8 +271,7 @@ class MaintenanceResource extends Resource
                         'danger' => 'rejected',
                     ])
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'pending' => 'Pending Approval',
-                        'planned' => 'Planned',
+                        'pending' => 'Planned / Scheduled',
                         'assigned' => 'Assigned',
                         'in-progress' => 'In Progress',
                         'pending-verification' => 'Pending Verification',
@@ -282,12 +279,15 @@ class MaintenanceResource extends Resource
                         'rejected' => 'Rejected',
                         default => $state,
                     }),
+                Tables\Columns\TextColumn::make('inspections_count')
+                    ->label('Jumlah Inspeksi')
+                    ->counts('inspections')
+                    ->toggleable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
                     ->options([
-                        'pending' => 'Pending Approval',
-                        'planned' => 'Planned',
+                        'pending' => 'Planned / Scheduled',
                         'assigned' => 'Assigned',
                         'in-progress' => 'In Progress',
                         'pending-verification' => 'Pending Verification',
@@ -312,9 +312,12 @@ class MaintenanceResource extends Resource
                 // Export actions removed - export functionality only available on reports page
             ])
             ->actions([
-                ViewAction::make(),
-                EditAction::make(),
-                DeleteAction::make(),
+                ViewAction::make()
+                    ->visible(fn (Maintenance $record) => true), // View tetap tersedia di semua status
+                EditAction::make()
+                    ->visible(fn (Maintenance $record) => !in_array($record->status, ['verified', 'rejected'])),
+                DeleteAction::make()
+                    ->visible(fn (Maintenance $record) => !in_array($record->status, ['verified', 'rejected'])),
                 Action::make('assign_technician')
                     ->label('Tugaskan Teknisi')
                     ->icon('heroicon-o-user-plus')
@@ -327,6 +330,16 @@ class MaintenanceResource extends Resource
                             ->required(),
                     ])
                     ->action(function (Maintenance $record, array $data) {
+                        // Cek apakah maintenance ini sudah memiliki teknisi
+                        if ($record->technician_id) {
+                            Notification::make()
+                                ->title('Tidak dapat menugaskan teknisi')
+                                ->body('Maintenance ini sudah memiliki teknisi yang ditugaskan. Hapus teknisi saat ini terlebih dahulu jika ingin menugaskan teknisi lain.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
                         $record->technician_id = $data['technician_id'];
                         // Ubah status menjadi assigned saat teknisi ditugaskan
                         $record->status = 'assigned';
@@ -369,7 +382,32 @@ class MaintenanceResource extends Resource
                             ->success()
                             ->send();
                     })
-                    ->visible(fn () => auth()->user()->role === 'admin'),
+                    ->visible(fn (Maintenance $record) => auth()->user()->role === 'admin' && 
+                              !in_array($record->status, ['verified', 'rejected', 'assigned', 'in-progress', 'pending-verification'])),
+                Action::make('remove_technician')
+                    ->label('Hapus Penugasan')
+                    ->icon('heroicon-o-user-minus')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Hapus Penugasan Teknisi')
+                    ->modalDescription('Apakah Anda yakin ingin menghapus penugasan teknisi dari maintenance ini? Semua inspeksi terkait juga akan dihapus.')
+                    ->modalSubmitActionLabel('Ya, Hapus Penugasan')
+                    ->action(function (Maintenance $record) {
+                        // Hapus inspeksi terkait
+                        Inspection::where('maintenance_id', $record->id)->delete();
+                        
+                        // Hapus penugasan teknisi
+                        $record->technician_id = null;
+                        $record->status = 'pending'; // Kembalikan status ke pending
+                        $record->save();
+                        
+                        Notification::make()
+                            ->title('Penugasan teknisi berhasil dihapus')
+                            ->success()
+                            ->send();
+                    })
+                    ->visible(fn (Maintenance $record) => auth()->user()->role === 'admin' && 
+                              $record->technician_id && in_array($record->status, ['assigned', 'pending'])),
             ])
             ->bulkActions([
                 DeleteBulkAction::make(),

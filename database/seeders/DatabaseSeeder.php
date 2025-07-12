@@ -54,6 +54,7 @@ class DatabaseSeeder extends Seeder
             DummyDataSeeder::class,
             SparePartSeeder::class,
             SupervisorUserSeeder::class,
+            ElektrikNonElektrikSeeder::class,
         ]);
     }
 }

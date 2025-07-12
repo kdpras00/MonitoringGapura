@@ -17,7 +17,8 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        FillDashboardData::class,
+        Commands\CleanOrphanedInspections::class,
+        Commands\CleanDuplicateInspections::class,
     ];
 
     /**
@@ -37,6 +38,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('dashboard:fill-data')->dailyAt('01:00');
 
         $schedule->command('app:clean-orphaned-inspections --force')->daily();
+
+        // Jalankan pembersihan inspection setiap hari pada jam 1 pagi
+        $schedule->command('inspections:clean')->dailyAt('01:00');
     }
 
     /**
